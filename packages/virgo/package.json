@@ -18,8 +18,7 @@
     "xss": "^1.0.14"
   },
   "peerDependencies": {
-    "yjs": "^13",
-    "xss": "^1"
+    "yjs": "^13"
   },
   "exports": {
     "./src/*": "./src/*.ts",

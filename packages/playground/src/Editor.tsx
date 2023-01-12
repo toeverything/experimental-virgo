@@ -19,30 +19,26 @@ export const Editor = () => {
     });
 
     if (editorARootRef.current) {
-      const editorA = new TextEditor(
-        editorARootRef.current,
-        yDocA.getText('text'),
-        text => {}
-      );
+      const textA = yDocA.getText('text');
+      textA.insert(0, 'Hello World');
+      const editorA = new TextEditor(editorARootRef.current, textA, text => {});
     }
     if (editorBRootRef.current) {
-      const editorB = new TextEditor(
-        editorBRootRef.current,
-        yDocB.getText('text'),
-        text => {}
-      );
+      const textB = yDocB.getText('text');
+      const editorB = new TextEditor(editorBRootRef.current, textB, text => {});
     }
   }, []);
 
   return (
-    <div>
+    <div className={'grid grid-rows-2 gap-4 h-full w-full'}>
       <p
-        className={'mb-4'}
+        className={'p-2'}
         suppressContentEditableWarning
         contentEditable={true}
         ref={editorARootRef}
       ></p>
       <p
+        className={'p-2'}
         suppressContentEditableWarning
         contentEditable={true}
         ref={editorBRootRef}
