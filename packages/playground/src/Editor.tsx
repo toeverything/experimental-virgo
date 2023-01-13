@@ -1,6 +1,7 @@
 import * as Y from 'yjs';
 import { useEffect, useRef } from 'react';
 import { TextEditor } from '@blocksuite/virgo';
+import { Signal } from '@blocksuite/virgo/src/utils/signal';
 
 export const Editor = () => {
   const editorARootRef = useRef<HTMLDivElement>(null);
@@ -21,11 +22,15 @@ export const Editor = () => {
     if (editorARootRef.current) {
       const textA = yDocA.getText('text');
       textA.insert(0, 'Hello World');
-      const editorA = new TextEditor(editorARootRef.current, textA, text => {});
+      const editorA = new TextEditor(editorARootRef.current, textA, {
+        updateRangeStatic: new Signal(),
+      });
     }
     if (editorBRootRef.current) {
       const textB = yDocB.getText('text');
-      const editorB = new TextEditor(editorBRootRef.current, textB, text => {});
+      const editorB = new TextEditor(editorBRootRef.current, textB, {
+        updateRangeStatic: new Signal(),
+      });
     }
   }, []);
 
