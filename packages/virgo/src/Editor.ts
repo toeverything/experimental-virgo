@@ -148,7 +148,7 @@ export class TextEditor {
   }
 
   /**
-   * calculate the rangeStatic from dom selection for this Editor
+   * calculate the rangeStatic from dom selection for **this Editor**
    * there are three cases when the rangeStatic of this Editor is not null:
    * (In the following, "|" mean anchor and focus, each line is a separate Editor)
    * 1. anchor and focus are in this Editor
@@ -299,7 +299,7 @@ export class TextEditor {
         this._yText.delete(this._rangeStatic.index, this._rangeStatic.length);
 
         this._signals.updateRangeStatic.emit({
-          index: this._rangeStatic.index - this._rangeStatic.length,
+          index: this._rangeStatic.index,
           length: 0,
         });
       } else if (this._rangeStatic.index > 0) {
