@@ -58,11 +58,14 @@ export class TextEditor {
     }
 
     rootElement.addEventListener('beforeinput', this._onBefoeInput.bind(this));
-
     rootElement.addEventListener('mousedown', this._onMouseDown.bind(this));
     rootElement.addEventListener('mousemove', this._onMouseMove.bind(this));
     rootElement.addEventListener('mouseup', this._onMouseUp.bind(this));
     rootElement.addEventListener('mouseleave', this._onMouseLeave.bind(this));
+    rootElement.addEventListener(
+      'compositionend',
+      this._onCompositionEnd.bind(this)
+    );
 
     yText.observe(this._onYTextChange.bind(this));
 
@@ -258,19 +261,12 @@ export class TextEditor {
 
   private _onBefoeInput(event: InputEvent): void {
     event.preventDefault();
-    const { inputType, data } = event;
-    // These two types occur while a user is composing text and can't be
-    // cancelled. Let them through and wait for the composition to end.
-    if (
-      inputType === 'insertCompositionText' ||
-      inputType === 'deleteCompositionText'
-    ) {
-      return;
-    }
 
     if (!this._rangeStatic) {
       return;
     }
+
+    const { inputType, data } = event;
 
     if (inputType === 'insertText' && this._rangeStatic.index >= 0 && data) {
       if (this._rangeStatic.length > 0) {
@@ -314,6 +310,26 @@ export class TextEditor {
           length: 0,
         });
       }
+    }
+  }
+
+  private _onCompositionEnd(event: CompositionEvent): void {
+    if (!this._rangeStatic) {
+      return;
+    }
+
+    const { data } = event;
+
+    if (this._rangeStatic.index >= 0 && data) {
+      if (this._rangeStatic.length > 0) {
+        this._yText.delete(this._rangeStatic.index, this._rangeStatic.length);
+      }
+      this._yText.insert(this._rangeStatic.index, data);
+
+      this._signals.updateRangeStatic.emit({
+        index: this._rangeStatic.index + data.length,
+        length: 0,
+      });
     }
   }
 
