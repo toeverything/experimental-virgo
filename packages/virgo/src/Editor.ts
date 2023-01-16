@@ -187,23 +187,23 @@ export class TextEditor {
       focusText = getClosestTextNode(rect.x, rect.y, this._rootElement);
     }
 
-    if (!anchorText || !focusText) {
-      return null;
-    }
-
-    const anchorPointStatic = textRangeToPointStatic(
-      anchorText,
-      anchorOffset,
-      this._rootElement
-    );
-    const focusPointStatic = textRangeToPointStatic(
-      focusText,
-      focusOffset,
-      this._rootElement
-    );
-
     // case 1
-    if (anchorPointStatic && focusPointStatic) {
+    if (anchorText && focusText) {
+      const anchorPointStatic = textRangeToPointStatic(
+        anchorText,
+        anchorOffset,
+        this._rootElement
+      );
+      const focusPointStatic = textRangeToPointStatic(
+        focusText,
+        focusOffset,
+        this._rootElement
+      );
+
+      if (!anchorPointStatic || !focusPointStatic) {
+        return null;
+      }
+
       return {
         index: Math.min(anchorPointStatic.index, focusPointStatic.index),
         length: Math.abs(anchorPointStatic.index - focusPointStatic.index),
@@ -211,7 +211,17 @@ export class TextEditor {
     }
 
     // case 2
-    if (anchorPointStatic && !focusPointStatic) {
+    if (anchorText && !focusText) {
+      const anchorPointStatic = textRangeToPointStatic(
+        anchorText,
+        anchorOffset,
+        this._rootElement
+      );
+
+      if (!anchorPointStatic) {
+        return null;
+      }
+
       if (isSelectionBackwards(selction)) {
         return {
           index: 0,
@@ -227,7 +237,17 @@ export class TextEditor {
     }
 
     // case 2
-    if (!anchorPointStatic && focusPointStatic) {
+    if (!anchorText && focusText) {
+      const focusPointStatic = textRangeToPointStatic(
+        focusText,
+        focusOffset,
+        this._rootElement
+      );
+
+      if (!focusPointStatic) {
+        return null;
+      }
+
       if (isSelectionBackwards(selction)) {
         return {
           index: focusPointStatic.index,
@@ -243,11 +263,7 @@ export class TextEditor {
     }
 
     // case 3
-    if (
-      !anchorPointStatic &&
-      !focusPointStatic &&
-      selction.containsNode(this._rootElement)
-    ) {
+    if (!anchorText && !focusText && selction.containsNode(this._rootElement)) {
       return {
         index: 0,
         length: this._yText.length,
