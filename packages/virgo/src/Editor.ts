@@ -24,7 +24,6 @@ export class TextEditor {
   private _rootElement: HTMLElement;
   private _yText: Y.Text;
   private _rangeStatic: RangeStatic | null = null;
-  private _anchorPointStatic: PointStatic | null = null;
   private _signals: TextEditorSignals;
 
   id: string;
@@ -59,18 +58,9 @@ export class TextEditor {
       }
     }
 
-    this._rootElement.addEventListener(
-      'mousedown',
-      this._onMouseDown.bind(this)
-    );
-    this._rootElement.addEventListener(
-      'mousemove',
-      this._onMouseMove.bind(this)
-    );
-    this._rootElement.addEventListener('mouseup', this._onMouseUp.bind(this));
-    this._rootElement.addEventListener(
-      'mouseleave',
-      this._onMouseLeave.bind(this)
+    document.addEventListener(
+      'selectionchange',
+      this._onSelectionChange.bind(this)
     );
 
     this._rootElement.addEventListener(
@@ -375,126 +365,20 @@ export class TextEditor {
     }
   }
 
-  private _onMouseDown(event: MouseEvent): void {
-    this._signals.updateRangeStatic.emit(null);
-    this._anchorPointStatic = null;
+  private _onSelectionChange(): void {
+    const selection = window.getSelection();
 
-    const range = caretRangeFromPoint(event.clientX, event.clientY);
-
-    if (!range) {
+    if (!selection) {
       return;
     }
 
-    const anchorNode = range.startContainer;
-    const anchorOffset = range.startOffset;
-
-    if (!this._rootElement.contains(anchorNode)) {
+    if (selection.rangeCount === 0) {
       return;
     }
 
-    if (
-      anchorNode instanceof Text &&
-      anchorNode.parentElement &&
-      anchorNode.parentElement.classList.contains(TEXT_CLASS)
-    ) {
-      const anchorPoint = textRangeToPointStatic(
-        anchorNode,
-        anchorOffset,
-        this._rootElement
-      );
-      if (anchorPoint) {
-        this._updateRangeStaticUsingPoint(anchorPoint, anchorPoint);
-        this._anchorPointStatic = anchorPoint;
-      }
-    } else {
-      const closestTextElement = getClosestTextNode(
-        event.clientX,
-        event.clientY,
-        this._rootElement
-      );
-      if (closestTextElement) {
-        const anchorPoint = textRangeToPointStatic(
-          closestTextElement,
-          closestTextElement.wholeText.length,
-          this._rootElement
-        );
-        if (anchorPoint) {
-          this._updateRangeStaticUsingPoint(anchorPoint, anchorPoint);
-          this._anchorPointStatic = anchorPoint;
-        }
-      }
-    }
-  }
-
-  private _onMouseMove(event: MouseEvent): void {
-    event.preventDefault();
-
-    if (!this._anchorPointStatic) {
-      return;
-    }
-
-    const range = caretRangeFromPoint(event.clientX, event.clientY);
-
-    if (!range) {
-      return;
-    }
-
-    const focusNode = range.startContainer;
-    const focusOffset = range.startOffset;
-
-    if (!this._rootElement.contains(focusNode)) {
-      return;
-    }
-
-    if (
-      focusNode instanceof Text &&
-      focusNode.parentElement &&
-      focusNode.parentElement.classList.contains(TEXT_CLASS)
-    ) {
-      const focusPointStatic = textRangeToPointStatic(
-        focusNode,
-        focusOffset,
-        this._rootElement
-      );
-      if (focusPointStatic) {
-        this._updateRangeStaticUsingPoint(
-          this._anchorPointStatic,
-          focusPointStatic
-        );
-      }
-    }
-  }
-
-  private _onMouseUp(): void {
-    this._anchorPointStatic = null;
-  }
-
-  private _onMouseLeave(): void {
-    this._anchorPointStatic = null;
-  }
-
-  private _updateRangeStaticUsingPoint(
-    anchor: PointStatic,
-    focus: PointStatic
-  ): void {
-    if (anchor.text === focus.text) {
-      this._signals.updateRangeStatic.emit({
-        index: Math.min(anchor.index, focus.index),
-        length: Math.abs(focus.index - anchor.index),
-      });
-    } else if (
-      anchor.text.compareDocumentPosition(focus.text) &
-      Node.DOCUMENT_POSITION_FOLLOWING
-    ) {
-      this._signals.updateRangeStatic.emit({
-        index: anchor.index,
-        length: Math.abs(focus.index - anchor.index),
-      });
-    } else {
-      this._signals.updateRangeStatic.emit({
-        index: focus.index,
-        length: Math.abs(focus.index - anchor.index),
-      });
+    const rangeStatic = this.toRangeStatic(selection);
+    if (rangeStatic) {
+      this._signals.updateRangeStatic.emit(rangeStatic);
     }
   }
 
@@ -509,17 +393,6 @@ export class TextEditor {
     }
 
     this._rangeStatic = newRangStatic;
-    if (this._rangeStatic) {
-      const newDomRange = this.toDomRange(this._rangeStatic);
-
-      if (newDomRange) {
-        const selection = window.getSelection();
-        if (selection) {
-          selection.removeAllRanges();
-          selection.addRange(newDomRange);
-        }
-      }
-    }
   }
 }
 
