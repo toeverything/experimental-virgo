@@ -25,22 +25,24 @@ export class TextEditor {
   private _yText: Y.Text;
   private _rangeStatic: RangeStatic | null = null;
   private _anchorPointStatic: PointStatic | null = null;
-  private _focusPointStatic: PointStatic | null = null;
   private _signals: TextEditorSignals;
-  private _isDragging = false;
+
+  id: string;
 
   constructor(
+    id: string,
     rootElement: TextEditor['_rootElement'],
     yText: TextEditor['_yText'],
-    signals: TextEditorSignals
+    signals: Pick<TextEditorSignals, 'updateRangeStatic'>
   ) {
+    this.id = id;
     this._rootElement = rootElement;
     this._yText = yText;
     this._signals = signals;
 
-    rootElement.replaceChildren();
-    rootElement.contentEditable = 'true';
-    rootElement.classList.add(EDITOR_ROOT_CLASS);
+    this._rootElement.replaceChildren();
+    this._rootElement.contentEditable = 'true';
+    this._rootElement.classList.add(EDITOR_ROOT_CLASS);
 
     const originText = this._yText.toString();
     const lines = originText.split('\n');
@@ -48,21 +50,40 @@ export class TextEditor {
       const spanElement = document.createElement('span');
       spanElement.classList.add(TEXT_CLASS);
       spanElement.appendChild(new Text(line));
-      rootElement.appendChild(spanElement);
+      this._rootElement.appendChild(spanElement);
 
       if (index !== lines.length - 1) {
         const lineBreakElement = document.createElement('br');
         lineBreakElement.classList.add(LINE_BREAK_CLASS);
-        rootElement.appendChild(lineBreakElement);
+        this._rootElement.appendChild(lineBreakElement);
       }
     }
 
-    rootElement.addEventListener('beforeinput', this._onBefoeInput.bind(this));
-    rootElement.addEventListener('mousedown', this._onMouseDown.bind(this));
-    rootElement.addEventListener('mousemove', this._onMouseMove.bind(this));
-    rootElement.addEventListener('mouseup', this._onMouseUp.bind(this));
-    rootElement.addEventListener('mouseleave', this._onMouseLeave.bind(this));
-    rootElement.addEventListener(
+    this._rootElement.addEventListener(
+      'mousedown',
+      this._onMouseDown.bind(this)
+    );
+    this._rootElement.addEventListener(
+      'mousemove',
+      this._onMouseMove.bind(this)
+    );
+    this._rootElement.addEventListener('mouseup', this._onMouseUp.bind(this));
+    this._rootElement.addEventListener(
+      'mouseleave',
+      this._onMouseLeave.bind(this)
+    );
+
+    this._rootElement.addEventListener(
+      'beforeinput',
+      this._onBefoeInput.bind(this)
+    );
+    this._rootElement.querySelectorAll(`.${TEXT_CLASS}`).forEach(textNode => {
+      textNode.addEventListener('dragstart', event => {
+        event.preventDefault();
+      });
+    });
+
+    this._rootElement.addEventListener(
       'compositionend',
       this._onCompositionEnd.bind(this)
     );
@@ -118,35 +139,6 @@ export class TextEditor {
     return range;
   }
 
-  textRangeToPointStatic(text: Text, offset: number): PointStatic | null {
-    if (!this._rootElement.contains(text)) {
-      return null;
-    }
-
-    const textNodes = Array.from(
-      this._rootElement.querySelectorAll(`.${TEXT_CLASS}`)
-    ).map(span => {
-      if (span.firstChild instanceof Text) {
-        return span.firstChild;
-      } else {
-        return null;
-      }
-    });
-    const goalIndex = textNodes.indexOf(text);
-
-    let index = 0;
-    for (const textNode of textNodes.slice(0, goalIndex)) {
-      if (!textNode) {
-        return null;
-      }
-      // the one becasue of the line break
-      index += textNode.wholeText.length + 1;
-    }
-    index += offset;
-
-    return { text, index };
-  }
-
   /**
    * calculate the rangeStatic from dom selection for **this Editor**
    * there are three cases when the rangeStatic of this Editor is not null:
@@ -173,7 +165,7 @@ export class TextEditor {
    *    the rangeStatic of first Editor is {index: 2, length: 4},
    *    the second is {index: 0, length: 6}, the third is {index: 0, length: 4}
    */
-  selectionToRangeStatic(selction: Selection): RangeStatic | null {
+  toRangeStatic(selction: Selection): RangeStatic | null {
     const { anchorNode, anchorOffset, focusNode, focusOffset } = selction;
 
     if (!anchorNode || !focusNode) {
@@ -186,28 +178,31 @@ export class TextEditor {
       anchorText = anchorNode;
     } else if (anchorNode instanceof Element) {
       const rect = anchorNode.getBoundingClientRect();
-      anchorText = this._getClosestTextNode(rect.x, rect.y);
+      anchorText = getClosestTextNode(rect.x, rect.y, this._rootElement);
     }
     if (focusNode instanceof Text) {
       focusText = focusNode;
     } else if (focusNode instanceof Element) {
       const rect = focusNode.getBoundingClientRect();
-      focusText = this._getClosestTextNode(rect.x, rect.y);
+      focusText = getClosestTextNode(rect.x, rect.y, this._rootElement);
     }
 
     if (!anchorText || !focusText) {
       return null;
     }
 
-    const anchorPointStatic = this.textRangeToPointStatic(
+    const anchorPointStatic = textRangeToPointStatic(
       anchorText,
-      anchorOffset
+      anchorOffset,
+      this._rootElement
     );
-    const focusPointStatic = this.textRangeToPointStatic(
+    const focusPointStatic = textRangeToPointStatic(
       focusText,
-      focusOffset
+      focusOffset,
+      this._rootElement
     );
 
+    // case 1
     if (anchorPointStatic && focusPointStatic) {
       return {
         index: Math.min(anchorPointStatic.index, focusPointStatic.index),
@@ -215,8 +210,9 @@ export class TextEditor {
       };
     }
 
+    // case 2
     if (anchorPointStatic && !focusPointStatic) {
-      if (this._isSelectionBackwards(selction)) {
+      if (isSelectionBackwards(selction)) {
         return {
           index: 0,
           length: anchorPointStatic.index,
@@ -230,8 +226,9 @@ export class TextEditor {
       }
     }
 
+    // case 2
     if (!anchorPointStatic && focusPointStatic) {
-      if (this._isSelectionBackwards(selction)) {
+      if (isSelectionBackwards(selction)) {
         return {
           index: focusPointStatic.index,
           length:
@@ -245,6 +242,7 @@ export class TextEditor {
       }
     }
 
+    // case 3
     if (
       !anchorPointStatic &&
       !focusPointStatic &&
@@ -362,8 +360,8 @@ export class TextEditor {
   }
 
   private _onMouseDown(event: MouseEvent): void {
+    this._signals.updateRangeStatic.emit(null);
     this._anchorPointStatic = null;
-    this._focusPointStatic = null;
 
     const range = caretRangeFromPoint(event.clientX, event.clientY);
 
@@ -383,20 +381,26 @@ export class TextEditor {
       anchorNode.parentElement &&
       anchorNode.parentElement.classList.contains(TEXT_CLASS)
     ) {
-      const anchorPoint = this.textRangeToPointStatic(anchorNode, anchorOffset);
+      const anchorPoint = textRangeToPointStatic(
+        anchorNode,
+        anchorOffset,
+        this._rootElement
+      );
       if (anchorPoint) {
         this._updateRangeStaticUsingPoint(anchorPoint, anchorPoint);
         this._anchorPointStatic = anchorPoint;
       }
     } else {
-      const closestTextElement = this._getClosestTextNode(
+      const closestTextElement = getClosestTextNode(
         event.clientX,
-        event.clientY
+        event.clientY,
+        this._rootElement
       );
       if (closestTextElement) {
-        const anchorPoint = this.textRangeToPointStatic(
+        const anchorPoint = textRangeToPointStatic(
           closestTextElement,
-          closestTextElement.wholeText.length
+          closestTextElement.wholeText.length,
+          this._rootElement
         );
         if (anchorPoint) {
           this._updateRangeStaticUsingPoint(anchorPoint, anchorPoint);
@@ -404,13 +408,12 @@ export class TextEditor {
         }
       }
     }
-
-    this._isDragging = true;
   }
 
   private _onMouseMove(event: MouseEvent): void {
     event.preventDefault();
-    if (!this._isDragging) {
+
+    if (!this._anchorPointStatic) {
       return;
     }
 
@@ -432,38 +435,26 @@ export class TextEditor {
       focusNode.parentElement &&
       focusNode.parentElement.classList.contains(TEXT_CLASS)
     ) {
-      const focusPointStatic = this.textRangeToPointStatic(
+      const focusPointStatic = textRangeToPointStatic(
         focusNode,
-        focusOffset
+        focusOffset,
+        this._rootElement
       );
-      if (focusPointStatic && this._anchorPointStatic) {
-        this._focusPointStatic = focusPointStatic;
+      if (focusPointStatic) {
         this._updateRangeStaticUsingPoint(
           this._anchorPointStatic,
-          this._focusPointStatic
+          focusPointStatic
         );
       }
     }
   }
 
   private _onMouseUp(): void {
-    this._isDragging = false;
+    this._anchorPointStatic = null;
   }
 
   private _onMouseLeave(): void {
-    this._isDragging = false;
-  }
-
-  private _isSelectionBackwards(selection: Selection) {
-    let backwards = false;
-    if (!selection.isCollapsed && selection.anchorNode && selection.focusNode) {
-      const range = document.createRange();
-      range.setStart(selection.anchorNode, selection.anchorOffset);
-      range.setEnd(selection.focusNode, selection.focusOffset);
-      backwards = range.collapsed;
-      range.detach();
-    }
-    return backwards;
+    this._anchorPointStatic = null;
   }
 
   private _updateRangeStaticUsingPoint(
@@ -506,47 +497,112 @@ export class TextEditor {
       const newDomRange = this.toDomRange(this._rangeStatic);
 
       if (newDomRange) {
-        const domSelction = window.getSelection();
-        if (domSelction) {
-          domSelction.removeAllRanges();
-          domSelction.addRange(newDomRange);
+        const selection = window.getSelection();
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(newDomRange);
         }
       }
     }
   }
+}
 
-  private _getClosestTextNode(clientX: number, clientY: number): Text | null {
-    const rootRect = this._rootElement.getBoundingClientRect();
-    if (
-      clientX < rootRect.x ||
-      clientX > rootRect.x + rootRect.width ||
-      clientY < rootRect.y ||
-      clientY > rootRect.y + rootRect.height
-    ) {
-      return null;
-    }
-
-    const textElements = Array.from(
-      this._rootElement.querySelectorAll(`.${TEXT_CLASS}`)
+function getClosestTextNode(
+  clientX: number,
+  clientY: number,
+  rootElement: HTMLElement
+): Text | null {
+  if (!rootElement.classList.contains(EDITOR_ROOT_CLASS)) {
+    console.warn(
+      'getClosestTextNode should be called with editor root element'
     );
-
-    let closestTextElement: Element | null = null;
-    let minDistance = Infinity;
-    for (const textElement of textElements) {
-      const elementRect = textElement.getBoundingClientRect();
-      const distance = Math.sqrt(
-        Math.pow(elementRect.x - clientX, 2) +
-          Math.pow(elementRect.y - clientY, 2)
-      );
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestTextElement = textElement;
-      }
-    }
-
-    if (closestTextElement && closestTextElement.firstChild instanceof Text) {
-      return closestTextElement.firstChild;
-    }
     return null;
   }
+
+  const rootRect = rootElement.getBoundingClientRect();
+  if (!intersects(rootRect, clientX, clientY)) {
+    return null;
+  }
+
+  const textElements = Array.from(
+    rootElement.querySelectorAll(`.${TEXT_CLASS}`)
+  );
+
+  let closestTextElement: Element | null = null;
+  let minDistance = Infinity;
+  for (const textElement of textElements) {
+    const elementRect = textElement.getBoundingClientRect();
+    const distance = Math.sqrt(
+      Math.pow(elementRect.x - clientX, 2) +
+        Math.pow(elementRect.y - clientY, 2)
+    );
+    if (distance < minDistance) {
+      minDistance = distance;
+      closestTextElement = textElement;
+    }
+  }
+
+  if (closestTextElement && closestTextElement.firstChild instanceof Text) {
+    return closestTextElement.firstChild;
+  }
+  return null;
+}
+
+function textRangeToPointStatic(
+  text: Text,
+  offset: number,
+  rootElement: HTMLElement
+): PointStatic | null {
+  if (!rootElement.classList.contains(EDITOR_ROOT_CLASS)) {
+    console.warn(
+      'textRangeToPointStatic should be called with editor root element'
+    );
+    return null;
+  }
+
+  if (!rootElement.contains(text)) {
+    return null;
+  }
+
+  const textNodes = Array.from(
+    rootElement.querySelectorAll(`.${TEXT_CLASS}`)
+  ).map(span => {
+    if (span.firstChild instanceof Text) {
+      return span.firstChild;
+    } else {
+      return null;
+    }
+  });
+  const goalIndex = textNodes.indexOf(text);
+
+  let index = 0;
+  for (const textNode of textNodes.slice(0, goalIndex)) {
+    if (!textNode) {
+      return null;
+    }
+    // the one becasue of the line break
+    index += textNode.wholeText.length + 1;
+  }
+
+  if (text.wholeText !== '\u200b') {
+    index += offset;
+  }
+
+  return { text, index };
+}
+
+function isSelectionBackwards(selection: Selection): boolean {
+  let backwards = false;
+  if (!selection.isCollapsed && selection.anchorNode && selection.focusNode) {
+    const range = document.createRange();
+    range.setStart(selection.anchorNode, selection.anchorOffset);
+    range.setEnd(selection.focusNode, selection.focusOffset);
+    backwards = range.collapsed;
+    range.detach();
+  }
+  return backwards;
+}
+
+function intersects(rect: DOMRect, x: number, y: number): boolean {
+  return rect.left <= x && x <= rect.right && rect.top <= y && y <= rect.bottom;
 }
