@@ -1,7 +1,6 @@
 import type * as Y from 'yjs';
 import { EDITOR_ROOT_CLASS, LINE_BREAK_CLASS, TEXT_CLASS } from './constant.js';
 import type { Signal } from './utils/signal.js';
-import { caretRangeFromPoint } from './utils/std.js';
 
 // TODO left right
 export interface RangeStatic {
@@ -25,6 +24,7 @@ export class TextEditor {
   private _yText: Y.Text;
   private _rangeStatic: RangeStatic | null = null;
   private _signals: TextEditorSignals;
+  private _isComposing = false;
 
   id: string;
 
@@ -74,6 +74,10 @@ export class TextEditor {
     });
 
     this._rootElement.addEventListener(
+      'compositionstart',
+      this._onCompositionStart.bind(this)
+    );
+    this._rootElement.addEventListener(
       'compositionend',
       this._onCompositionEnd.bind(this)
     );
@@ -99,24 +103,26 @@ export class TextEditor {
       if (!textNode) {
         return null;
       }
-      const text = textNode.wholeText;
+
+      const textLength = calculateTextLength(textNode);
+
       if (
         index <= rangeStatic.index &&
-        rangeStatic.index <= index + text.length
+        rangeStatic.index <= index + textLength
       ) {
         anchorText = textNode;
         anchorOffset = rangeStatic.index - index;
       }
       if (
         index <= rangeStatic.index + rangeStatic.length &&
-        rangeStatic.index + rangeStatic.length <= index + text.length
+        rangeStatic.index + rangeStatic.length <= index + textLength
       ) {
         focusText = textNode;
         focusOffset = rangeStatic.index + rangeStatic.length - index;
       }
 
       // the one becasue of the line break
-      index += text.length + 1;
+      index += textLength + 1;
     }
 
     if (!anchorText || !focusText) {
@@ -317,7 +323,13 @@ export class TextEditor {
     }
   }
 
+  private _onCompositionStart(): void {
+    this._isComposing = true;
+  }
+
   private _onCompositionEnd(event: CompositionEvent): void {
+    this._isComposing = false;
+
     if (!this._rangeStatic) {
       return;
     }
@@ -366,6 +378,10 @@ export class TextEditor {
   }
 
   private _onSelectionChange(): void {
+    if (this._isComposing) {
+      return;
+    }
+
     const selection = window.getSelection();
 
     if (!selection) {
@@ -393,6 +409,18 @@ export class TextEditor {
     }
 
     this._rangeStatic = newRangStatic;
+
+    if (this._rangeStatic) {
+      const newRange = this.toDomRange(this._rangeStatic);
+
+      if (newRange) {
+        const selection = window.getSelection();
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        }
+      }
+    }
   }
 }
 
@@ -463,19 +491,19 @@ function textRangeToPointStatic(
     }
   });
   const goalIndex = textNodes.indexOf(text);
-
   let index = 0;
   for (const textNode of textNodes.slice(0, goalIndex)) {
     if (!textNode) {
       return null;
     }
     // the one becasue of the line break
-    index += textNode.wholeText.length + 1;
+    index += calculateTextLength(textNode) + 1;
   }
 
-  if (text.wholeText !== '\u200b') {
-    index += offset;
-  }
+  index += offset;
+  // if (text.wholeText !== '\u200b') {
+  //   index += offset;
+  // }
 
   return { text, index };
 }
@@ -494,4 +522,12 @@ function isSelectionBackwards(selection: Selection): boolean {
 
 function intersects(rect: DOMRect, x: number, y: number): boolean {
   return rect.left <= x && x <= rect.right && rect.top <= y && y <= rect.bottom;
+}
+
+function calculateTextLength(text: Text): number {
+  if (text.wholeText === '\u200b') {
+    return 0;
+  } else {
+    return text.wholeText.length;
+  }
 }
