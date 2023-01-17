@@ -14,8 +14,7 @@
   "author": "toeverything",
   "license": "MPL-2.0",
   "devDependencies": {
-    "yjs": "^13.5.44",
-    "xss": "^1.0.14"
+    "yjs": "^13.5.44"
   },
   "peerDependencies": {
     "yjs": "^13"

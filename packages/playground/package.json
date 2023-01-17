@@ -9,15 +9,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@blocksuite/virgo": "workspace:*",
     "@lexical/clipboard": "^0.7.5",
     "@lexical/plain-text": "^0.7.5",
     "@lexical/selection": "^0.7.5",
     "@lexical/utils": "^0.7.5",
     "lexical": "^0.7.5",
+    "localforage": "^1.10.0",
+    "match-sorter": "^6.3.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "yjs": "^13.5.44",
-    "@blocksuite/virgo": "workspace:*"
+    "react-router-dom": "^6.6.2",
+    "sort-by": "^1.2.0",
+    "yjs": "^13.5.44"
   },
   "devDependencies": {
     "@types/react": "^18.0.26",
