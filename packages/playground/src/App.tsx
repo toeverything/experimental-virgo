@@ -18,7 +18,7 @@ export const App = () => {
     <div
       className={'grid justify-center items-center h-full w-full bg-[#242424]'}
     >
-      <div className={'w-96 h-96 bg-[#202124] text-[#d5d5cf]'}>
+      <div className={'w-[700px] h-96 bg-[#202124] text-[#d5d5cf]'}>
         <RouterProvider router={router}></RouterProvider>
       </div>
     </div>

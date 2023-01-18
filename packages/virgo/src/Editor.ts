@@ -15,8 +15,12 @@ export interface PointStatic {
   index: number;
 }
 
+export type UpdateRangeStaticProp = [
+  RangeStatic | null,
+  'native' | 'input' | 'outside'
+];
 export interface TextEditorSignals {
-  updateRangeStatic: Signal<RangeStatic | null>;
+  updateRangeStatic: Signal<UpdateRangeStaticProp>;
 }
 
 export class TextEditor {
@@ -91,7 +95,7 @@ export class TextEditor {
   }
 
   setRangeStatic(rangeStatic: RangeStatic): void {
-    this._signals.updateRangeStatic.emit(rangeStatic);
+    this._signals.updateRangeStatic.emit([rangeStatic, 'outside']);
   }
 
   deleteText(rangeStatic: RangeStatic): void {
@@ -201,7 +205,7 @@ export class TextEditor {
       const rect = focusNode.getBoundingClientRect();
       focusText = getClosestTextNode(rect.x, rect.y, this._rootElement);
     }
-
+    console.log(anchorText, anchorOffset, focusText, focusOffset);
     // case 1
     if (anchorText && focusText) {
       const anchorPointStatic = textRangeToPointStatic(
@@ -214,7 +218,7 @@ export class TextEditor {
         focusOffset,
         this._rootElement
       );
-
+      console.log(anchorPointStatic, focusPointStatic);
       if (!anchorPointStatic || !focusPointStatic) {
         return null;
       }
@@ -303,10 +307,13 @@ export class TextEditor {
       }
       this._yText.insert(this._rangeStatic.index, data);
 
-      this._signals.updateRangeStatic.emit({
-        index: this._rangeStatic.index + data.length,
-        length: 0,
-      });
+      this._signals.updateRangeStatic.emit([
+        {
+          index: this._rangeStatic.index + data.length,
+          length: 0,
+        },
+        'input',
+      ]);
     } else if (
       inputType === 'insertParagraph' &&
       this._rangeStatic.index >= 0
@@ -316,10 +323,13 @@ export class TextEditor {
       }
       this._yText.insert(this._rangeStatic.index, '\n');
 
-      this._signals.updateRangeStatic.emit({
-        index: this._rangeStatic.index + 1,
-        length: 0,
-      });
+      this._signals.updateRangeStatic.emit([
+        {
+          index: this._rangeStatic.index + 1,
+          length: 0,
+        },
+        'input',
+      ]);
     } else if (
       inputType === 'deleteContentBackward' &&
       this._rangeStatic.index >= 0
@@ -327,10 +337,13 @@ export class TextEditor {
       if (this._rangeStatic.length > 0) {
         this._yText.delete(this._rangeStatic.index, this._rangeStatic.length);
 
-        this._signals.updateRangeStatic.emit({
-          index: this._rangeStatic.index,
-          length: 0,
-        });
+        this._signals.updateRangeStatic.emit([
+          {
+            index: this._rangeStatic.index,
+            length: 0,
+          },
+          'input',
+        ]);
       } else if (this._rangeStatic.index > 0) {
         // https://dev.to/acanimal/how-to-slice-or-get-symbols-from-a-unicode-string-with-emojis-in-javascript-lets-learn-how-javascript-represent-strings-h3a
         const tmpString = this._yText
@@ -342,10 +355,13 @@ export class TextEditor {
           deletedChracater.length
         );
 
-        this._signals.updateRangeStatic.emit({
-          index: this._rangeStatic.index - deletedChracater.length,
-          length: 0,
-        });
+        this._signals.updateRangeStatic.emit([
+          {
+            index: this._rangeStatic.index - deletedChracater.length,
+            length: 0,
+          },
+          'input',
+        ]);
       }
     }
   }
@@ -369,10 +385,13 @@ export class TextEditor {
       }
       this._yText.insert(this._rangeStatic.index, data);
 
-      this._signals.updateRangeStatic.emit({
-        index: this._rangeStatic.index + data.length,
-        length: 0,
-      });
+      this._signals.updateRangeStatic.emit([
+        {
+          index: this._rangeStatic.index + data.length,
+          length: 0,
+        },
+        'input',
+      ]);
     }
   }
 
@@ -413,11 +432,14 @@ export class TextEditor {
 
     const rangeStatic = this.toRangeStatic(selection);
     if (rangeStatic) {
-      this._signals.updateRangeStatic.emit(rangeStatic);
+      this._signals.updateRangeStatic.emit([rangeStatic, 'native']);
     }
   }
 
-  private _onUpdateRangeStatic(newRangStatic: RangeStatic | null): void {
+  private _onUpdateRangeStatic([
+    newRangStatic,
+    origin,
+  ]: UpdateRangeStaticProp): void {
     if (
       this._rangeStatic &&
       newRangStatic &&
@@ -429,7 +451,7 @@ export class TextEditor {
 
     this._rangeStatic = newRangStatic;
 
-    if (this._rangeStatic) {
+    if (this._rangeStatic && origin !== 'native') {
       const newRange = this.toDomRange(this._rangeStatic);
 
       if (newRange) {

@@ -1,4 +1,4 @@
-import { RangeStatic, Signal, TextEditor } from '@blocksuite/virgo';
+import { Signal, TextEditor, UpdateRangeStaticProp } from '@blocksuite/virgo';
 import { useEffect, useRef } from 'react';
 import * as Y from 'yjs';
 
@@ -21,8 +21,8 @@ export const TestEditor = () => {
     if (editorARootRef.current) {
       const textA = yDocA.getText('text');
 
-      const signal = new Signal<RangeStatic | null>();
-      signal.on(range => {
+      const signal = new Signal<UpdateRangeStaticProp>();
+      signal.on(([range]) => {
         console.log('A', range);
       });
 
@@ -33,8 +33,8 @@ export const TestEditor = () => {
     if (editorBRootRef.current) {
       const textB = yDocB.getText('text');
 
-      const signal = new Signal<RangeStatic | null>();
-      signal.on(range => {
+      const signal = new Signal<UpdateRangeStaticProp>();
+      signal.on(([range]) => {
         console.log('B', range);
       });
 
