@@ -1,6 +1,6 @@
 import type * as Y from 'yjs';
 import { EDITOR_ROOT_CLASS, TEXT_CLASS } from './constant.js';
-import type { Signal } from './utils/signal.js';
+import { Signal } from './utils/signal.js';
 
 // TODO left right
 export interface RangeStatic {
@@ -21,6 +21,7 @@ export type UpdateRangeStaticProp = [
 ];
 export interface TextEditorSignals {
   updateRangeStatic: Signal<UpdateRangeStaticProp>;
+  updateFocusState: Signal<boolean>;
 }
 
 export class TextEditor {
@@ -41,7 +42,7 @@ export class TextEditor {
     this.id = id;
     this._rootElement = rootElement;
     this._yText = yText;
-    this._signals = signals;
+    this._signals = { ...signals, updateFocusState: new Signal() };
 
     this._rootElement.replaceChildren();
     this._rootElement.contentEditable = 'true';
@@ -80,10 +81,13 @@ export class TextEditor {
       'compositionend',
       this._onCompositionEnd.bind(this)
     );
+    this._rootElement.addEventListener('focus', this._onFocus.bind(this));
+    this._rootElement.addEventListener('blur', this._onBlur.bind(this));
 
     yText.observe(this._onYTextChange.bind(this));
 
     this._signals.updateRangeStatic.on(this._onUpdateRangeStatic.bind(this));
+    this._signals.updateFocusState.on(this._onUpdateFocusState.bind(this));
   }
 
   getRootElement(): HTMLElement {
@@ -395,6 +399,14 @@ export class TextEditor {
     }
   }
 
+  private _onFocus(): void {
+    this._signals.updateFocusState.emit(true);
+  }
+
+  private _onBlur(): void {
+    this._signals.updateFocusState.emit(false);
+  }
+
   private _onYTextChange(): void {
     /**
      * Y.Text:
@@ -461,6 +473,12 @@ export class TextEditor {
           selection.addRange(newRange);
         }
       }
+    }
+  }
+
+  private _onUpdateFocusState(isFocused: boolean): void {
+    if (!isFocused) {
+      this._signals.updateRangeStatic.emit([null, 'native']);
     }
   }
 }
