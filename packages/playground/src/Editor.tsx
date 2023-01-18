@@ -20,7 +20,15 @@ export const Editor = () => {
 
     if (editorARootRef.current) {
       const textA = yDocA.getText('text');
-      textA.insert(0, 'Hello World');
+      textA.insert(0, 'aaa');
+
+      textA.observe(() => {
+        console.log('A', textA.toString(), textA.toString().length);
+        console.log(
+          editorARootRef.current?.innerHTML,
+          editorARootRef.current?.innerText === 'aaa\n\n'
+        );
+      });
 
       const signal = new Signal<RangeStatic | null>();
       // signal.on(range => {
@@ -33,6 +41,14 @@ export const Editor = () => {
     }
     if (editorBRootRef.current) {
       const textB = yDocB.getText('text');
+
+      textB.observe(() => {
+        console.log('B', textB.toString(), textB.toString().length);
+        console.log(
+          editorBRootRef.current?.innerText,
+          editorBRootRef.current?.innerText === 'aaa\n\n'
+        );
+      });
 
       const signal = new Signal<RangeStatic | null>();
       // signal.on(range => {
@@ -47,18 +63,18 @@ export const Editor = () => {
 
   return (
     <div className={'grid grid-rows-2 gap-4 h-full w-full'}>
-      <p
+      <div
         className={'p-2'}
         suppressContentEditableWarning
         contentEditable={true}
         ref={editorARootRef}
-      ></p>
-      <p
+      ></div>
+      <div
         className={'p-2'}
         suppressContentEditableWarning
         contentEditable={true}
         ref={editorBRootRef}
-      ></p>
+      ></div>
     </div>
   );
 };

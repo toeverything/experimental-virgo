@@ -1,5 +1,5 @@
 import type * as Y from 'yjs';
-import { EDITOR_ROOT_CLASS, LINE_BREAK_CLASS, TEXT_CLASS } from './constant.js';
+import { EDITOR_ROOT_CLASS, TEXT_CLASS } from './constant.js';
 import type { Signal } from './utils/signal.js';
 
 // TODO left right
@@ -42,20 +42,15 @@ export class TextEditor {
     this._rootElement.replaceChildren();
     this._rootElement.contentEditable = 'true';
     this._rootElement.classList.add(EDITOR_ROOT_CLASS);
+    this._rootElement.style.display = 'block';
 
     const originText = this._yText.toString();
     const lines = originText.split('\n');
-    for (const [index, line] of lines.entries()) {
-      const spanElement = document.createElement('span');
-      spanElement.classList.add(TEXT_CLASS);
-      spanElement.appendChild(new Text(line));
-      this._rootElement.appendChild(spanElement);
-
-      if (index !== lines.length - 1) {
-        const lineBreakElement = document.createElement('br');
-        lineBreakElement.classList.add(LINE_BREAK_CLASS);
-        this._rootElement.appendChild(lineBreakElement);
-      }
+    for (const line of lines) {
+      const lineElement = document.createElement('div');
+      lineElement.classList.add(TEXT_CLASS);
+      lineElement.appendChild(new Text(line));
+      this._rootElement.appendChild(lineElement);
     }
 
     document.addEventListener(
@@ -87,8 +82,32 @@ export class TextEditor {
     this._signals.updateRangeStatic.on(this._onUpdateRangeStatic.bind(this));
   }
 
+  getRootElement(): HTMLElement {
+    return this._rootElement;
+  }
+
+  getRangeStatic(): RangeStatic | null {
+    return this._rangeStatic;
+  }
+
+  setRangeStatic(rangeStatic: RangeStatic): void {
+    this._signals.updateRangeStatic.emit(rangeStatic);
+  }
+
+  deleteText(rangeStatic: RangeStatic): void {
+    this._yText.delete(rangeStatic.index, rangeStatic.length);
+  }
+
+  insertText(text: string, rangeStatic: RangeStatic): void {
+    this._yText.delete(rangeStatic.index, rangeStatic.length);
+    this._yText.insert(rangeStatic.index, text);
+  }
+
+  /**
+   * calculate the dom selection from rangeStatic for **this Editor**
+   */
   toDomRange(rangeStatic: RangeStatic): Range | null {
-    const textSpanNodes = Array.from(
+    const lineElements = Array.from(
       this._rootElement.querySelectorAll(`.${TEXT_CLASS}`)
     );
 
@@ -98,8 +117,8 @@ export class TextEditor {
     let anchorOffset = 0;
     let focusOffset = 0;
     let index = 0;
-    for (let i = 0; i < textSpanNodes.length; i++) {
-      const textNode = textSpanNodes[i].firstChild as Text | null;
+    for (let i = 0; i < lineElements.length; i++) {
+      const textNode = lineElements[i].firstChild as Text | null;
       if (!textNode) {
         return null;
       }
@@ -313,10 +332,18 @@ export class TextEditor {
           length: 0,
         });
       } else if (this._rangeStatic.index > 0) {
-        this._yText.delete(this._rangeStatic.index - 1, 1);
+        // https://dev.to/acanimal/how-to-slice-or-get-symbols-from-a-unicode-string-with-emojis-in-javascript-lets-learn-how-javascript-represent-strings-h3a
+        const tmpString = this._yText
+          .toString()
+          .slice(0, this._rangeStatic.index);
+        const deletedChracater = [...tmpString].slice(-1).join('');
+        this._yText.delete(
+          this._rangeStatic.index - deletedChracater.length,
+          deletedChracater.length
+        );
 
         this._signals.updateRangeStatic.emit({
-          index: this._rangeStatic.index - 1,
+          index: this._rangeStatic.index - deletedChracater.length,
           length: 0,
         });
       }
@@ -354,26 +381,18 @@ export class TextEditor {
      * Y.Text:
      *    aaa\nbbb\nccc
      * innerHTML:
-     *    <span class="${TEXT_CLASS}">aaa</span>
-     *    <br class="${LINE_BREAK_CLASS}">
-     *    <span class="${TEXT_CLASS}">bbb</span>
-     *    <br class="${LINE_BREAK_CLASS}">
-     *    <span class="${TEXT_CLASS}">ccc</span>
+     *    <div class="${TEXT_CLASS}">aaa</div>
+     *    <div class="${TEXT_CLASS}">bbb</div>
+     *    <div class="${TEXT_CLASS}">ccc</div>
      */
     const originText = this._yText.toString();
     this._rootElement.replaceChildren();
     const lines = originText.split('\n');
-    for (const [index, line] of lines.entries()) {
-      const spanElement = document.createElement('span');
-      spanElement.classList.add(TEXT_CLASS);
-      spanElement.appendChild(new Text(line.length > 0 ? line : '\u200b'));
-      this._rootElement.appendChild(spanElement);
-
-      if (index !== lines.length - 1) {
-        const lineBreakElement = document.createElement('br');
-        lineBreakElement.classList.add(LINE_BREAK_CLASS);
-        this._rootElement.appendChild(lineBreakElement);
-      }
+    for (const line of lines) {
+      const lineElement = document.createElement('div');
+      lineElement.classList.add(TEXT_CLASS);
+      lineElement.appendChild(new Text(line.length > 0 ? line : '\u200b'));
+      this._rootElement.appendChild(lineElement);
     }
   }
 
@@ -483,9 +502,9 @@ function textRangeToPointStatic(
 
   const textNodes = Array.from(
     rootElement.querySelectorAll(`.${TEXT_CLASS}`)
-  ).map(span => {
-    if (span.firstChild instanceof Text) {
-      return span.firstChild;
+  ).map(line => {
+    if (line.firstChild instanceof Text) {
+      return line.firstChild;
     } else {
       return null;
     }
@@ -500,10 +519,9 @@ function textRangeToPointStatic(
     index += calculateTextLength(textNode) + 1;
   }
 
-  index += offset;
-  // if (text.wholeText !== '\u200b') {
-  //   index += offset;
-  // }
+  if (text.wholeText !== '\u200b') {
+    index += offset;
+  }
 
   return { text, index };
 }

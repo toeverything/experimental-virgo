@@ -46,18 +46,18 @@ export const TestEditor = () => {
 
   return (
     <div className={'grid grid-rows-2 gap-4 h-full w-full'}>
-      <p
+      <div
         className={'p-2'}
         suppressContentEditableWarning
         contentEditable={true}
         ref={editorARootRef}
-      ></p>
-      <p
+      ></div>
+      <div
         className={'p-2'}
         suppressContentEditableWarning
         contentEditable={true}
         ref={editorBRootRef}
-      ></p>
+      ></div>
     </div>
   );
 };

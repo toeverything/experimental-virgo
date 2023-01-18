@@ -6,68 +6,92 @@ test('basic input in one line', async ({ page }) => {
   await enterPlayground(page);
   await focusRichText(page);
 
-  await page.keyboard.type('Hello World!🧐你好世界!');
+  await page.keyboard.type('aaa🧐bbb');
 
   const editorA = page.locator(`.${EDITOR_ROOT_CLASS}`).nth(0);
   const editorB = page.locator(`.${EDITOR_ROOT_CLASS}`).nth(1);
 
-  expect(await editorA.innerText()).toBe('Hello World!🧐你好世界!');
-  expect(await editorB.innerText()).toBe('Hello World!🧐你好世界!');
-});
+  expect(await editorA.innerHTML()).toBe(
+    '<div class="virgo-text">aaa🧐bbb</div>'
+  );
+  expect(await editorB.innerHTML()).toBe(
+    '<div class="virgo-text">aaa🧐bbb</div>'
+  );
 
-test('delete input in one line', async ({ page }) => {
-  await enterPlayground(page);
-  await focusRichText(page);
-
-  await page.keyboard.type('aaaabbbb');
   await page.keyboard.press('Backspace');
   await page.keyboard.press('Backspace');
   await page.keyboard.press('Backspace');
   await page.keyboard.press('Backspace');
 
-  const editorA = page.locator(`.${EDITOR_ROOT_CLASS}`).nth(0);
-  const editorB = page.locator(`.${EDITOR_ROOT_CLASS}`).nth(1);
+  expect(await editorA.innerHTML()).toBe('<div class="virgo-text">aaa</div>');
+  expect(await editorB.innerHTML()).toBe('<div class="virgo-text">aaa</div>');
 
-  expect(await editorA.innerText()).toBe('aaaa');
-  expect(await editorB.innerText()).toBe('aaaa');
-});
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('bbb');
 
-test('basic input in multiple lines', async ({ page }) => {
-  await enterPlayground(page);
-  await focusRichText(page);
+  expect(await editorA.innerHTML()).toBe(
+    '<div class="virgo-text">aaa</div><div class="virgo-text">bbb</div>'
+  );
+  expect(await editorB.innerHTML()).toBe(
+    '<div class="virgo-text">aaa</div><div class="virgo-text">bbb</div>'
+  );
 
-  await page.keyboard.type('aaaa');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Backspace');
+
+  expect(await editorA.innerHTML()).toBe('<div class="virgo-text">aaa</div>');
+  expect(await editorB.innerHTML()).toBe('<div class="virgo-text">aaa</div>');
+
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+
+  expect(await editorA.innerHTML()).toBe(
+    '<div class="virgo-text">aaa</div><div class="virgo-text">​</div><div class="virgo-text">​</div>'
+  );
+  expect(await editorB.innerHTML()).toBe(
+    '<div class="virgo-text">aaa</div><div class="virgo-text">​</div><div class="virgo-text">​</div>'
+  );
+
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Backspace');
+
+  expect(await editorA.innerHTML()).toBe('<div class="virgo-text">aaa</div>');
+  expect(await editorB.innerHTML()).toBe('<div class="virgo-text">aaa</div>');
+
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.type('bb');
+
+  expect(await editorA.innerHTML()).toBe('<div class="virgo-text">abbaa</div>');
+  expect(await editorB.innerHTML()).toBe('<div class="virgo-text">abbaa</div>');
+
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.type('bb');
+
+  expect(await editorA.innerHTML()).toBe(
+    '<div class="virgo-text">abbabba</div>'
+  );
+  expect(await editorB.innerHTML()).toBe(
+    '<div class="virgo-text">abbabba</div>'
+  );
 
   await page.keyboard.press('Enter');
 
-  await page.keyboard.type('bbbb');
-
-  const editorA = page.locator(`.${EDITOR_ROOT_CLASS}`).nth(0);
-  const editorB = page.locator(`.${EDITOR_ROOT_CLASS}`).nth(1);
-
-  expect(await editorA.innerText()).toBe('aaaa\nbbbb');
-  expect(await editorB.innerText()).toBe('aaaa\nbbbb');
-});
-
-test('delete input in multiple lines', async ({ page }) => {
-  await enterPlayground(page);
-  await focusRichText(page);
-
-  await page.keyboard.type('aaaa');
-
-  await page.keyboard.press('Enter');
-
-  await page.keyboard.type('bbbb');
+  expect(await editorA.innerHTML()).toBe(
+    '<div class="virgo-text">abbabb</div><div class="virgo-text">a</div>'
+  );
+  expect(await editorB.innerHTML()).toBe(
+    '<div class="virgo-text">abbabb</div><div class="virgo-text">a</div>'
+  );
 
   await page.keyboard.press('Backspace');
-  await page.keyboard.press('Backspace');
-  await page.keyboard.press('Backspace');
-  await page.keyboard.press('Backspace');
-  await page.keyboard.press('Backspace');
 
-  const editorA = page.locator(`.${EDITOR_ROOT_CLASS}`).nth(0);
-  const editorB = page.locator(`.${EDITOR_ROOT_CLASS}`).nth(1);
-
-  expect(await editorA.innerText()).toBe('aaaa');
-  expect(await editorB.innerText()).toBe('aaaa');
+  expect(await editorA.innerHTML()).toBe(
+    '<div class="virgo-text">abbabba</div>'
+  );
+  expect(await editorB.innerHTML()).toBe(
+    '<div class="virgo-text">abbabba</div>'
+  );
 });
