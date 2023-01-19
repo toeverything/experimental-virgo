@@ -31,5 +31,8 @@
       "./src/*": "./dist/*.js",
       ".": "./dist/index.js"
     }
+  },
+  "dependencies": {
+    "@blocksuite/global": "0.4.0-20230119023850-6877b78"
   }
 }

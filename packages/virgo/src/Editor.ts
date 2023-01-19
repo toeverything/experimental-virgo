@@ -1,6 +1,6 @@
 import type * as Y from 'yjs';
 import { EDITOR_ROOT_CLASS, TEXT_CLASS } from './constant.js';
-import { Signal } from './utils/signal.js';
+import { Signal } from '@blocksuite/global/utils';
 
 // TODO left right
 export interface RangeStatic {
