@@ -14,10 +14,12 @@
   "author": "toeverything",
   "license": "MPL-2.0",
   "devDependencies": {
+    "lit-html": "^2.6.1",
     "yjs": "^13.5.44"
   },
   "peerDependencies": {
-    "yjs": "^13"
+    "yjs": "^13",
+    "lit-html": "^2"
   },
   "exports": {
     "./src/*": "./src/*.ts",

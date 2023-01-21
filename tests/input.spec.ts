@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { enterPlayground, focusRichText } from './utils/misc.js';
 import { EDITOR_ROOT_CLASS } from '../packages/virgo/src/constant.js';
 
+// TODO update this test to use the new API
 test('basic input in one line', async ({ page }) => {
   await enterPlayground(page);
   await focusRichText(page);

@@ -27,6 +27,7 @@ importers:
       '@vitejs/plugin-react': ^3.0.1
       autoprefixer: ^10.4.13
       lexical: ^0.7.5
+      lit: ^2.6.1
       localforage: ^1.10.0
       match-sorter: ^6.3.1
       postcss: ^8.4.21
@@ -46,6 +47,7 @@ importers:
       '@lexical/utils': 0.7.5_lexical@0.7.5
       '@shoelace-style/shoelace': 2.0.0-beta.88
       lexical: 0.7.5
+      lit: 2.6.1
       localforage: 1.10.0
       match-sorter: 6.3.1
       react: 18.2.0
@@ -66,10 +68,12 @@ importers:
   packages/virgo:
     specifiers:
       '@blocksuite/global': 0.4.0-20230119023850-6877b78
+      lit-html: ^2.6.1
       yjs: ^13.5.44
     dependencies:
       '@blocksuite/global': 0.4.0-20230119023850-6877b78
     devDependencies:
+      lit-html: 2.6.1
       yjs: 13.5.44
 
 packages:
@@ -739,7 +743,6 @@ packages:
 
   /@types/trusted-types/2.0.2:
     resolution: {integrity: sha512-F5DIZ36YVLE+PN+Zwws4kJogq47hNgX3Nx6WyDJ3kcplxyke3XIzB8uK5n/Lpm1HBsbGzd6nmGehL8cPekP+Tg==}
-    dev: false
 
   /@vitejs/plugin-react/3.0.1_vite@4.0.4:
     resolution: {integrity: sha512-mx+QvYwIbbpOIJw+hypjnW1lAbKDHtWK5ibkF/V1/oMBu8HU/chb+SnqJDAsLq1+7rGqjktCEomMTM5KShzUKQ==}
@@ -1138,7 +1141,6 @@ packages:
     resolution: {integrity: sha512-Z3iw+E+3KKFn9t2YKNjsXNEu/LRLI98mtH/C6lnFg7kvaqPIzPn124Yd4eT/43lyqrejpc5Wb6BHq3fdv4S8Rw==}
     dependencies:
       '@types/trusted-types': 2.0.2
-    dev: false
 
   /lit/2.6.1:
     resolution: {integrity: sha512-DT87LD64f8acR7uVp7kZfhLRrHkfC/N4BVzAtnw9Yg8087mbBJ//qedwdwX0kzDbxgPccWRW6mFwGbRQIxy0pw==}

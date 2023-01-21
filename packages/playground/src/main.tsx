@@ -3,6 +3,7 @@ import { App } from './App';
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path';
 
 import '@shoelace-style/shoelace/dist/themes/dark.css';
+
 import './styles/index.css';
 
 setBasePath(

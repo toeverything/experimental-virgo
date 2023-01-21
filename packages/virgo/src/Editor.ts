@@ -1,6 +1,17 @@
 import type * as Y from 'yjs';
-import { EDITOR_ROOT_CLASS, TEXT_CLASS } from './constant.js';
+import {
+  EDITOR_ROOT_CLASS,
+  TEXT_CLASS,
+  TEXT_LINE_CLASS,
+  ZERO_WIDTH_SPACE,
+} from './constant.js';
 import { Signal } from '@blocksuite/global/utils';
+import { render } from 'lit-html';
+import type { DeltaInserts } from './types.js';
+import { VirgoLine } from './components/virgo-line.js';
+import { renderElement } from './utils/render-element.js';
+import { deltaInsersToChunks } from './utils.js';
+import { VirgoText } from './components/virgo-text.js';
 
 // TODO left right
 export interface RangeStatic {
@@ -49,13 +60,19 @@ export class TextEditor {
     this._rootElement.classList.add(EDITOR_ROOT_CLASS);
     this._rootElement.style.display = 'block';
 
-    const originText = this._yText.toString();
-    const lines = originText.split('\n');
-    for (const line of lines) {
-      const lineElement = document.createElement('div');
-      lineElement.classList.add(TEXT_CLASS);
-      lineElement.appendChild(new Text(line));
-      this._rootElement.appendChild(lineElement);
+    const deltas = this._yText.toDelta() as DeltaInserts;
+    const chunks = deltaInsersToChunks(deltas);
+
+    // every chunk is a line
+    for (const chunk of chunks) {
+      if (chunk.length === 0) {
+        render(VirgoLine([VirgoText(ZERO_WIDTH_SPACE)]), this._rootElement);
+      } else {
+        render(
+          VirgoLine(chunk.map(d => renderElement(d.attributes.type, d))),
+          this._rootElement
+        );
+      }
     }
 
     document.addEventListener(
@@ -106,9 +123,14 @@ export class TextEditor {
     this._yText.delete(rangeStatic.index, rangeStatic.length);
   }
 
-  insertText(text: string, rangeStatic: RangeStatic): void {
+  insertText(rangeStatic: RangeStatic, text: string): void {
     this._yText.delete(rangeStatic.index, rangeStatic.length);
-    this._yText.insert(rangeStatic.index, text);
+    this._yText.insert(rangeStatic.index, text, { type: 'base' });
+  }
+
+  insertLineBreak(rangeStatic: RangeStatic): void {
+    this._yText.delete(rangeStatic.index, rangeStatic.length);
+    this._yText.insert(rangeStatic.index, '\n', { type: 'line-break' });
   }
 
   /**
@@ -116,7 +138,7 @@ export class TextEditor {
    */
   toDomRange(rangeStatic: RangeStatic): Range | null {
     const lineElements = Array.from(
-      this._rootElement.querySelectorAll(`.${TEXT_CLASS}`)
+      this._rootElement.querySelectorAll(`.${TEXT_LINE_CLASS}`)
     );
 
     // calculate anchorNode and focusNode
@@ -126,30 +148,38 @@ export class TextEditor {
     let focusOffset = 0;
     let index = 0;
     for (let i = 0; i < lineElements.length; i++) {
-      const textNode = lineElements[i].firstChild as Text | null;
-      if (!textNode) {
-        return null;
-      }
+      const textElements = Array.from(
+        lineElements[i].querySelectorAll(`.${TEXT_CLASS}`)
+      );
 
-      const textLength = calculateTextLength(textNode);
+      let lineTextLength = 0;
+      for (let j = 0; j < textElements.length; j++) {
+        const textNode = getTextNodeFromElement(textElements[j]);
+        if (!textNode) {
+          return null;
+        }
 
-      if (
-        index <= rangeStatic.index &&
-        rangeStatic.index <= index + textLength
-      ) {
-        anchorText = textNode;
-        anchorOffset = rangeStatic.index - index;
-      }
-      if (
-        index <= rangeStatic.index + rangeStatic.length &&
-        rangeStatic.index + rangeStatic.length <= index + textLength
-      ) {
-        focusText = textNode;
-        focusOffset = rangeStatic.index + rangeStatic.length - index;
+        const textLength = calculateTextLength(textNode);
+        lineTextLength += textLength;
+
+        if (
+          index <= rangeStatic.index &&
+          rangeStatic.index <= index + textLength
+        ) {
+          anchorText = textNode;
+          anchorOffset = rangeStatic.index - index;
+        }
+        if (
+          index <= rangeStatic.index + rangeStatic.length &&
+          rangeStatic.index + rangeStatic.length <= index + textLength
+        ) {
+          focusText = textNode;
+          focusOffset = rangeStatic.index + rangeStatic.length - index;
+        }
       }
 
       // the one becasue of the line break
-      index += textLength + 1;
+      index += lineTextLength + 1;
     }
 
     if (!anchorText || !focusText) {
@@ -209,7 +239,7 @@ export class TextEditor {
       const rect = focusNode.getBoundingClientRect();
       focusText = getClosestTextNode(rect.x, rect.y, this._rootElement);
     }
-    console.log(anchorText, anchorOffset, focusText, focusOffset);
+
     // case 1
     if (anchorText && focusText) {
       const anchorPointStatic = textRangeToPointStatic(
@@ -222,7 +252,7 @@ export class TextEditor {
         focusOffset,
         this._rootElement
       );
-      console.log(anchorPointStatic, focusPointStatic);
+
       if (!anchorPointStatic || !focusPointStatic) {
         return null;
       }
@@ -306,10 +336,7 @@ export class TextEditor {
     const { inputType, data } = event;
 
     if (inputType === 'insertText' && this._rangeStatic.index >= 0 && data) {
-      if (this._rangeStatic.length > 0) {
-        this._yText.delete(this._rangeStatic.index, this._rangeStatic.length);
-      }
-      this._yText.insert(this._rangeStatic.index, data);
+      this.insertText(this._rangeStatic, data);
 
       this._signals.updateRangeStatic.emit([
         {
@@ -322,10 +349,7 @@ export class TextEditor {
       inputType === 'insertParagraph' &&
       this._rangeStatic.index >= 0
     ) {
-      if (this._rangeStatic.length > 0) {
-        this._yText.delete(this._rangeStatic.index, this._rangeStatic.length);
-      }
-      this._yText.insert(this._rangeStatic.index, '\n');
+      this.insertLineBreak(this._rangeStatic);
 
       this._signals.updateRangeStatic.emit([
         {
@@ -339,7 +363,7 @@ export class TextEditor {
       this._rangeStatic.index >= 0
     ) {
       if (this._rangeStatic.length > 0) {
-        this._yText.delete(this._rangeStatic.index, this._rangeStatic.length);
+        this.deleteText(this._rangeStatic);
 
         this._signals.updateRangeStatic.emit([
           {
@@ -354,10 +378,10 @@ export class TextEditor {
           .toString()
           .slice(0, this._rangeStatic.index);
         const deletedChracater = [...tmpString].slice(-1).join('');
-        this._yText.delete(
-          this._rangeStatic.index - deletedChracater.length,
-          deletedChracater.length
-        );
+        this.deleteText({
+          index: this._rangeStatic.index - deletedChracater.length,
+          length: deletedChracater.length,
+        });
 
         this._signals.updateRangeStatic.emit([
           {
@@ -384,10 +408,7 @@ export class TextEditor {
     const { data } = event;
 
     if (this._rangeStatic.index >= 0 && data) {
-      if (this._rangeStatic.length > 0) {
-        this._yText.delete(this._rangeStatic.index, this._rangeStatic.length);
-      }
-      this._yText.insert(this._rangeStatic.index, data);
+      this.insertText(this._rangeStatic, data);
 
       this._signals.updateRangeStatic.emit([
         {
@@ -408,23 +429,21 @@ export class TextEditor {
   }
 
   private _onYTextChange(): void {
-    /**
-     * Y.Text:
-     *    aaa\nbbb\nccc
-     * innerHTML:
-     *    <div class="${TEXT_CLASS}">aaa</div>
-     *    <div class="${TEXT_CLASS}">bbb</div>
-     *    <div class="${TEXT_CLASS}">ccc</div>
-     */
-    const originText = this._yText.toString();
-    this._rootElement.replaceChildren();
-    const lines = originText.split('\n');
-    for (const line of lines) {
-      const lineElement = document.createElement('div');
-      lineElement.classList.add(TEXT_CLASS);
-      lineElement.appendChild(new Text(line.length > 0 ? line : '\u200b'));
-      this._rootElement.appendChild(lineElement);
+    const deltas = this._yText.toDelta() as DeltaInserts;
+    const chunks = deltaInsersToChunks(deltas);
+
+    // every chunk is a line
+    const lines: Array<ReturnType<typeof VirgoLine>> = [];
+    for (const chunk of chunks) {
+      if (chunk.length === 0) {
+        lines.push(VirgoLine([VirgoText(ZERO_WIDTH_SPACE)]));
+      } else {
+        lines.push(
+          VirgoLine(chunk.map(d => renderElement(d.attributes.type, d)))
+        );
+      }
     }
+    render(lines, this._rootElement);
   }
 
   private _onSelectionChange(): void {
@@ -518,8 +537,8 @@ function getClosestTextNode(
     }
   }
 
-  if (closestTextElement && closestTextElement.firstChild instanceof Text) {
-    return closestTextElement.firstChild;
+  if (closestTextElement) {
+    return getTextNodeFromElement(closestTextElement);
   }
   return null;
 }
@@ -530,10 +549,9 @@ function textRangeToPointStatic(
   rootElement: HTMLElement
 ): PointStatic | null {
   if (!rootElement.classList.contains(EDITOR_ROOT_CLASS)) {
-    console.warn(
+    throw new Error(
       'textRangeToPointStatic should be called with editor root element'
     );
-    return null;
   }
 
   if (!rootElement.contains(text)) {
@@ -542,26 +560,22 @@ function textRangeToPointStatic(
 
   const textNodes = Array.from(
     rootElement.querySelectorAll(`.${TEXT_CLASS}`)
-  ).map(line => {
-    if (line.firstChild instanceof Text) {
-      return line.firstChild;
-    } else {
-      return null;
-    }
-  });
+  ).map(textElement => getTextNodeFromElement(textElement));
   const goalIndex = textNodes.indexOf(text);
   let index = 0;
   for (const textNode of textNodes.slice(0, goalIndex)) {
     if (!textNode) {
       return null;
     }
-    // the one becasue of the line break
-    index += calculateTextLength(textNode) + 1;
+
+    index += calculateTextLength(textNode);
   }
 
-  if (text.wholeText !== '\u200b') {
+  if (text.wholeText !== ZERO_WIDTH_SPACE) {
     index += offset;
   }
+
+  index += calculateLineBreaks(rootElement, index);
 
   return { text, index };
 }
@@ -583,9 +597,50 @@ function intersects(rect: DOMRect, x: number, y: number): boolean {
 }
 
 function calculateTextLength(text: Text): number {
-  if (text.wholeText === '\u200b') {
+  if (text.wholeText === ZERO_WIDTH_SPACE) {
     return 0;
   } else {
     return text.wholeText.length;
   }
+}
+
+function calculateLineBreaks(root: Element, index: number): number {
+  if (root.classList.contains(EDITOR_ROOT_CLASS)) {
+    const lines = Array.from(root.querySelectorAll(`.${TEXT_LINE_CLASS}`));
+    let lineBreak = 0;
+    let tmpIndex = 0;
+
+    for (const line of lines.slice(0, index)) {
+      const texts = Array.from(line.querySelectorAll(`.${TEXT_CLASS}`));
+
+      tmpIndex += texts.reduce((acc, text) => {
+        const textNode = getTextNodeFromElement(text);
+        if (textNode) {
+          return acc + calculateTextLength(textNode);
+        }
+        throw new Error('text node not found');
+      }, 0);
+      if (tmpIndex <= index) {
+        lineBreak++;
+      } else {
+        break;
+      }
+    }
+    return lineBreak;
+  }
+
+  throw new Error(
+    'calculateLineBreak should be called with editor root element'
+  );
+}
+
+function getTextNodeFromElement(element: Element): Text | null {
+  const textNode = Array.from(element.childNodes).find(
+    node => node instanceof Text
+  );
+
+  if (textNode) {
+    return textNode as Text;
+  }
+  return null;
 }
