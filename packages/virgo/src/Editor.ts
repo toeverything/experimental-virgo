@@ -620,7 +620,7 @@ function calculateLineBreaks(root: Element, index: number): number {
         }
         throw new Error('text node not found');
       }, 0);
-      if (tmpIndex <= index) {
+      if (tmpIndex < index) {
         lineBreak++;
       } else {
         break;

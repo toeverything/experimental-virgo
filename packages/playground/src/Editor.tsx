@@ -33,7 +33,7 @@ export const Editor = () => {
     if (editorARootRef.current) {
       const textA = yDocA.getText('text');
       undoManagerA.current = new Y.UndoManager(textA);
-      textA.insert(0, 'Hello World', { type: 'base' });
+      // textA.insert(0, 'Hello World', { type: 'base' });
 
       const signal = new Signal<UpdateRangeStaticProp>();
       signal.on(([range]) => {
