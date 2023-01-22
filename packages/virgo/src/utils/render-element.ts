@@ -1,15 +1,14 @@
 import type { html } from 'lit-html';
 import { VirgoText } from '../components/virgo-text.js';
-import type { DeltaInsert, TextType } from '../types.js';
+import type { BaseArrtiubtes, DeltaInsert, TextAttributes } from '../types.js';
 
 export function renderElement(
-  type: TextType,
-  delta: DeltaInsert
+  delta: DeltaInsert<TextAttributes>
 ): ReturnType<typeof html> {
-  switch (type) {
+  switch (delta.attributes.type) {
     case 'base':
-      return VirgoText(delta.insert);
+      return VirgoText(delta as DeltaInsert<BaseArrtiubtes>);
     default:
-      throw new Error(`Unknown text type: ${type}`);
+      throw new Error(`Unknown text type: ${delta.attributes.type}`);
   }
 }

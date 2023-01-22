@@ -5,13 +5,18 @@ import {
   TEXT_LINE_CLASS,
   ZERO_WIDTH_SPACE,
 } from './constant.js';
-import { Signal } from '@blocksuite/global/utils';
+import { caretRangeFromPoint, Signal } from '@blocksuite/global/utils';
 import { render } from 'lit-html';
-import type { DeltaInserts } from './types.js';
+import type { BaseArrtiubtes, DeltaInsert, DeltaInserts } from './types.js';
 import { VirgoLine } from './components/virgo-line.js';
 import { renderElement } from './utils/render-element.js';
 import { deltaInsersToChunks } from './utils.js';
 import { VirgoText } from './components/virgo-text.js';
+
+const ZERO_WIDTH_SPACE_DELTA: DeltaInsert<BaseArrtiubtes> = {
+  insert: ZERO_WIDTH_SPACE,
+  attributes: { type: 'base' },
+};
 
 // TODO left right
 export interface RangeStatic {
@@ -19,7 +24,7 @@ export interface RangeStatic {
   length: number;
 }
 
-export interface PointStatic {
+export interface DomPoint {
   // which text node this point is in
   text: Text;
   // the index here is relative to the Editor, not text node
@@ -66,12 +71,12 @@ export class TextEditor {
     // every chunk is a line
     for (const chunk of chunks) {
       if (chunk.length === 0) {
-        render(VirgoLine([VirgoText(ZERO_WIDTH_SPACE)]), this._rootElement);
-      } else {
         render(
-          VirgoLine(chunk.map(d => renderElement(d.attributes.type, d))),
+          VirgoLine([VirgoText(ZERO_WIDTH_SPACE_DELTA)]),
           this._rootElement
         );
+      } else {
+        render(VirgoLine(chunk.map(d => renderElement(d))), this._rootElement);
       }
     }
 
@@ -140,7 +145,7 @@ export class TextEditor {
     const lineElements = Array.from(
       this._rootElement.querySelectorAll(`.${TEXT_LINE_CLASS}`)
     );
-
+    // debugger
     // calculate anchorNode and focusNode
     let anchorText: Text | null = null;
     let focusText: Text | null = null;
@@ -152,7 +157,6 @@ export class TextEditor {
         lineElements[i].querySelectorAll(`.${TEXT_CLASS}`)
       );
 
-      let lineTextLength = 0;
       for (let j = 0; j < textElements.length; j++) {
         const textNode = getTextNodeFromElement(textElements[j]);
         if (!textNode) {
@@ -160,7 +164,6 @@ export class TextEditor {
         }
 
         const textLength = calculateTextLength(textNode);
-        lineTextLength += textLength;
 
         if (
           index <= rangeStatic.index &&
@@ -176,10 +179,12 @@ export class TextEditor {
           focusText = textNode;
           focusOffset = rangeStatic.index + rangeStatic.length - index;
         }
+
+        index += textLength;
       }
 
       // the one becasue of the line break
-      index += lineTextLength + 1;
+      index += 1;
     }
 
     if (!anchorText || !focusText) {
@@ -218,105 +223,129 @@ export class TextEditor {
    *    the rangeStatic of first Editor is {index: 2, length: 4},
    *    the second is {index: 0, length: 6}, the third is {index: 0, length: 4}
    */
-  toRangeStatic(selction: Selection): RangeStatic | null {
-    const { anchorNode, anchorOffset, focusNode, focusOffset } = selction;
-
+  toRangeStatic(selection: Selection): RangeStatic | null {
+    const { anchorNode, anchorOffset, focusNode, focusOffset, isCollapsed } =
+      selection;
     if (!anchorNode || !focusNode) {
       return null;
     }
 
     let anchorText: Text | null = null;
+    let anchorTextOffset = anchorOffset;
     let focusText: Text | null = null;
-    if (anchorNode instanceof Text) {
+    let focusTextOffset = focusOffset;
+
+    if (anchorNode instanceof Text && ifVirgoText(anchorNode)) {
       anchorText = anchorNode;
-    } else if (anchorNode instanceof Element) {
-      const rect = anchorNode.getBoundingClientRect();
-      anchorText = getClosestTextNode(rect.x, rect.y, this._rootElement);
+      anchorTextOffset = anchorOffset;
     }
-    if (focusNode instanceof Text) {
+    if (focusNode instanceof Text && ifVirgoText(focusNode)) {
       focusText = focusNode;
-    } else if (focusNode instanceof Element) {
-      const rect = focusNode.getBoundingClientRect();
-      focusText = getClosestTextNode(rect.x, rect.y, this._rootElement);
+      focusTextOffset = focusOffset;
+    }
+
+    if (isCollapsed) {
+      const rect = selection.getRangeAt(0).getBoundingClientRect();
+      const range = caretRangeFromPoint(rect.x, rect.y);
+
+      if (
+        range &&
+        range.startContainer instanceof Text &&
+        ifVirgoText(range.startContainer)
+      ) {
+        anchorText = range.startContainer as Text;
+        anchorTextOffset = range.startOffset;
+      }
+
+      if (
+        range &&
+        range.endContainer instanceof Text &&
+        ifVirgoText(range.endContainer)
+      ) {
+        focusText = range.endContainer as Text;
+        focusTextOffset = range.endOffset;
+      }
     }
 
     // case 1
     if (anchorText && focusText) {
-      const anchorPointStatic = textRangeToPointStatic(
+      const anchorDomPoint = textPointToDomPoint(
         anchorText,
-        anchorOffset,
+        anchorTextOffset,
         this._rootElement
       );
-      const focusPointStatic = textRangeToPointStatic(
+      const focusDomPoint = textPointToDomPoint(
         focusText,
-        focusOffset,
+        focusTextOffset,
         this._rootElement
       );
 
-      if (!anchorPointStatic || !focusPointStatic) {
+      if (!anchorDomPoint || !focusDomPoint) {
         return null;
       }
 
       return {
-        index: Math.min(anchorPointStatic.index, focusPointStatic.index),
-        length: Math.abs(anchorPointStatic.index - focusPointStatic.index),
+        index: Math.min(anchorDomPoint.index, focusDomPoint.index),
+        length: Math.abs(anchorDomPoint.index - focusDomPoint.index),
       };
     }
 
     // case 2
     if (anchorText && !focusText) {
-      const anchorPointStatic = textRangeToPointStatic(
+      const anchorDomPoint = textPointToDomPoint(
         anchorText,
-        anchorOffset,
+        anchorTextOffset,
         this._rootElement
       );
 
-      if (!anchorPointStatic) {
+      if (!anchorDomPoint) {
         return null;
       }
 
-      if (isSelectionBackwards(selction)) {
+      if (isSelectionBackwards(selection)) {
         return {
           index: 0,
-          length: anchorPointStatic.index,
+          length: anchorDomPoint.index,
         };
       } else {
         return {
-          index: anchorPointStatic.index,
-          length:
-            anchorPointStatic.text.wholeText.length - anchorPointStatic.index,
+          index: anchorDomPoint.index,
+          length: anchorDomPoint.text.wholeText.length - anchorDomPoint.index,
         };
       }
     }
 
     // case 2
     if (!anchorText && focusText) {
-      const focusPointStatic = textRangeToPointStatic(
+      const focusDomPoint = textPointToDomPoint(
         focusText,
-        focusOffset,
+        focusTextOffset,
         this._rootElement
       );
 
-      if (!focusPointStatic) {
+      if (!focusDomPoint) {
         return null;
       }
 
-      if (isSelectionBackwards(selction)) {
+      if (isSelectionBackwards(selection)) {
         return {
-          index: focusPointStatic.index,
-          length:
-            focusPointStatic.text.wholeText.length - focusPointStatic.index,
+          index: focusDomPoint.index,
+          length: focusDomPoint.text.wholeText.length - focusDomPoint.index,
         };
       } else {
         return {
           index: 0,
-          length: focusPointStatic.index,
+          length: focusDomPoint.index,
         };
       }
     }
 
     // case 3
-    if (!anchorText && !focusText && selction.containsNode(this._rootElement)) {
+    if (
+      !anchorText &&
+      !focusText &&
+      selection.containsNode(this._rootElement)
+    ) {
       return {
         index: 0,
         length: this._yText.length,
@@ -436,11 +465,9 @@ export class TextEditor {
     const lines: Array<ReturnType<typeof VirgoLine>> = [];
     for (const chunk of chunks) {
       if (chunk.length === 0) {
-        lines.push(VirgoLine([VirgoText(ZERO_WIDTH_SPACE)]));
+        lines.push(VirgoLine([VirgoText(ZERO_WIDTH_SPACE_DELTA)]));
       } else {
-        lines.push(
-          VirgoLine(chunk.map(d => renderElement(d.attributes.type, d)))
-        );
+        lines.push(VirgoLine(chunk.map(d => renderElement(d))));
       }
     }
     render(lines, this._rootElement);
@@ -461,9 +488,31 @@ export class TextEditor {
       return;
     }
 
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    const { anchorNode, anchorOffset, focusNode, focusOffset } = selection;
+    const caretRange = caretRangeFromPoint(rect.x, rect.y);
+
+    let isNative = false;
+    if (
+      !selection.isCollapsed ||
+      (anchorNode &&
+        focusNode &&
+        caretRange &&
+        caretRange.startContainer === anchorNode &&
+        caretRange.startOffset === anchorOffset &&
+        caretRange.endContainer === focusNode &&
+        caretRange.endOffset === focusOffset)
+    ) {
+      isNative = true;
+    }
+
     const rangeStatic = this.toRangeStatic(selection);
     if (rangeStatic) {
-      this._signals.updateRangeStatic.emit([rangeStatic, 'native']);
+      this._signals.updateRangeStatic.emit([
+        rangeStatic,
+        isNative ? 'native' : 'outside',
+      ]);
     }
   }
 
@@ -481,7 +530,6 @@ export class TextEditor {
     }
 
     this._rangeStatic = newRangStatic;
-
     if (this._rangeStatic && origin !== 'native') {
       const newRange = this.toDomRange(this._rangeStatic);
 
@@ -502,55 +550,14 @@ export class TextEditor {
   }
 }
 
-function getClosestTextNode(
-  clientX: number,
-  clientY: number,
-  rootElement: HTMLElement
-): Text | null {
-  if (!rootElement.classList.contains(EDITOR_ROOT_CLASS)) {
-    console.warn(
-      'getClosestTextNode should be called with editor root element'
-    );
-    return null;
-  }
-
-  const rootRect = rootElement.getBoundingClientRect();
-  if (!intersects(rootRect, clientX, clientY)) {
-    return null;
-  }
-
-  const textElements = Array.from(
-    rootElement.querySelectorAll(`.${TEXT_CLASS}`)
-  );
-
-  let closestTextElement: Element | null = null;
-  let minDistance = Infinity;
-  for (const textElement of textElements) {
-    const elementRect = textElement.getBoundingClientRect();
-    const distance = Math.sqrt(
-      Math.pow(elementRect.x - clientX, 2) +
-        Math.pow(elementRect.y - clientY, 2)
-    );
-    if (distance < minDistance) {
-      minDistance = distance;
-      closestTextElement = textElement;
-    }
-  }
-
-  if (closestTextElement) {
-    return getTextNodeFromElement(closestTextElement);
-  }
-  return null;
-}
-
-function textRangeToPointStatic(
+function textPointToDomPoint(
   text: Text,
   offset: number,
   rootElement: HTMLElement
-): PointStatic | null {
+): DomPoint | null {
   if (!rootElement.classList.contains(EDITOR_ROOT_CLASS)) {
     throw new Error(
-      'textRangeToPointStatic should be called with editor root element'
+      'textRangeToDomPoint should be called with editor root element'
     );
   }
 
@@ -605,10 +612,6 @@ function isSelectionBackwards(selection: Selection): boolean {
   return backwards;
 }
 
-function intersects(rect: DOMRect, x: number, y: number): boolean {
-  return rect.left <= x && x <= rect.right && rect.top <= y && y <= rect.bottom;
-}
-
 function calculateTextLength(text: Text): number {
   if (text.wholeText === ZERO_WIDTH_SPACE) {
     return 0;
@@ -626,4 +629,8 @@ function getTextNodeFromElement(element: Element): Text | null {
     return textNode as Text;
   }
   return null;
+}
+
+function ifVirgoText(text: Text): boolean {
+  return text.parentElement?.classList.contains(TEXT_CLASS) ?? false;
 }
