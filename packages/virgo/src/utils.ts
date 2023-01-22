@@ -16,6 +16,10 @@ export function deltaInsersToChunks(delta: DeltaInserts): DeltaInserts[] {
         yield arr.slice(start);
       }
     }
+
+    if (arr[arr.length - 1].attributes.type === 'line-break') {
+      yield [];
+    }
   }
 
   return [...chunksGenerator(delta)];

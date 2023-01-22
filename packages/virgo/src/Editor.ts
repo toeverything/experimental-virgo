@@ -575,9 +575,22 @@ function textRangeToPointStatic(
     index += offset;
   }
 
-  index += calculateLineBreaks(rootElement, index);
+  const textElement = text.parentElement;
+  if (!textElement) {
+    throw new Error('text element not found');
+  }
 
-  return { text, index };
+  const lineElement = text.parentElement.closest(`.${TEXT_LINE_CLASS}`);
+
+  if (!lineElement) {
+    throw new Error('line element not found');
+  }
+
+  const lineIndex = Array.from(
+    rootElement.querySelectorAll(`.${TEXT_LINE_CLASS}`)
+  ).indexOf(lineElement);
+
+  return { text, index: index + lineIndex };
 }
 
 function isSelectionBackwards(selection: Selection): boolean {
@@ -602,36 +615,6 @@ function calculateTextLength(text: Text): number {
   } else {
     return text.wholeText.length;
   }
-}
-
-function calculateLineBreaks(root: Element, index: number): number {
-  if (root.classList.contains(EDITOR_ROOT_CLASS)) {
-    const lines = Array.from(root.querySelectorAll(`.${TEXT_LINE_CLASS}`));
-    let lineBreak = 0;
-    let tmpIndex = 0;
-
-    for (const line of lines.slice(0, index)) {
-      const texts = Array.from(line.querySelectorAll(`.${TEXT_CLASS}`));
-
-      tmpIndex += texts.reduce((acc, text) => {
-        const textNode = getTextNodeFromElement(text);
-        if (textNode) {
-          return acc + calculateTextLength(textNode);
-        }
-        throw new Error('text node not found');
-      }, 0);
-      if (tmpIndex < index) {
-        lineBreak++;
-      } else {
-        break;
-      }
-    }
-    return lineBreak;
-  }
-
-  throw new Error(
-    'calculateLineBreak should be called with editor root element'
-  );
 }
 
 function getTextNodeFromElement(element: Element): Text | null {
