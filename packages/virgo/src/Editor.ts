@@ -33,7 +33,7 @@ export interface DomPoint {
 
 export type UpdateRangeStaticProp = [
   RangeStatic | null,
-  'native' | 'input' | 'outside'
+  'native' | 'input' | 'other'
 ];
 export interface TextEditorSignals {
   updateRangeStatic: Signal<UpdateRangeStaticProp>;
@@ -46,6 +46,7 @@ export class TextEditor {
   private _rangeStatic: RangeStatic | null = null;
   private _signals: TextEditorSignals;
   private _isComposing = false;
+  private _selectionLock = false;
 
   id: string;
 
@@ -84,6 +85,9 @@ export class TextEditor {
       'selectionchange',
       this._onSelectionChange.bind(this)
     );
+    document.addEventListener('selectstart', () => {
+      this._selectionLock = false;
+    });
 
     this._rootElement.addEventListener(
       'beforeinput',
@@ -112,6 +116,26 @@ export class TextEditor {
     this._signals.updateFocusState.on(this._onUpdateFocusState.bind(this));
   }
 
+  getDeltaByRangeStatic(rangeStatic: RangeStatic): DeltaInsert | null {
+    const deltas = this._yText.toDelta() as DeltaInserts;
+
+    let index = 0;
+    for (let i = 0; i < deltas.length; i++) {
+      const delta = deltas[i];
+      if (index + delta.insert.length >= rangeStatic.index) {
+        const start = rangeStatic.index - index;
+        const end = start + rangeStatic.length;
+        return {
+          insert: delta.insert.slice(start, end),
+          attributes: delta.attributes,
+        };
+      }
+      index += delta.insert.length;
+    }
+
+    return null;
+  }
+
   getRootElement(): HTMLElement {
     return this._rootElement;
   }
@@ -121,7 +145,7 @@ export class TextEditor {
   }
 
   setRangeStatic(rangeStatic: RangeStatic): void {
-    this._signals.updateRangeStatic.emit([rangeStatic, 'outside']);
+    this._signals.updateRangeStatic.emit([rangeStatic, 'other']);
   }
 
   deleteText(rangeStatic: RangeStatic): void {
@@ -130,7 +154,17 @@ export class TextEditor {
 
   insertText(rangeStatic: RangeStatic, text: string): void {
     this._yText.delete(rangeStatic.index, rangeStatic.length);
-    this._yText.insert(rangeStatic.index, text, { type: 'base' });
+
+    const currentDelta = this.getDeltaByRangeStatic(rangeStatic);
+    if (
+      rangeStatic.index > 0 &&
+      currentDelta &&
+      currentDelta.attributes.type !== 'line-break'
+    ) {
+      this._yText.insert(rangeStatic.index, text, currentDelta.attributes);
+    } else {
+      this._yText.insert(rangeStatic.index, text, { type: 'base' });
+    }
   }
 
   insertLineBreak(rangeStatic: RangeStatic): void {
@@ -145,7 +179,7 @@ export class TextEditor {
     const lineElements = Array.from(
       this._rootElement.querySelectorAll(`.${TEXT_LINE_CLASS}`)
     );
-    // debugger
+
     // calculate anchorNode and focusNode
     let anchorText: Text | null = null;
     let focusText: Text | null = null;
@@ -165,16 +199,13 @@ export class TextEditor {
 
         const textLength = calculateTextLength(textNode);
 
-        if (
-          index <= rangeStatic.index &&
-          rangeStatic.index <= index + textLength
-        ) {
+        if (!anchorText && index + textLength >= rangeStatic.index) {
           anchorText = textNode;
           anchorOffset = rangeStatic.index - index;
         }
         if (
-          index <= rangeStatic.index + rangeStatic.length &&
-          rangeStatic.index + rangeStatic.length <= index + textLength
+          !focusText &&
+          index + textLength >= rangeStatic.index + rangeStatic.length
         ) {
           focusText = textNode;
           focusOffset = rangeStatic.index + rangeStatic.length - index;
@@ -474,7 +505,7 @@ export class TextEditor {
   }
 
   private _onSelectionChange(): void {
-    if (this._isComposing) {
+    if (this._isComposing || this._selectionLock) {
       return;
     }
 
@@ -491,6 +522,14 @@ export class TextEditor {
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
     const { anchorNode, anchorOffset, focusNode, focusOffset } = selection;
+
+    if (
+      !this._rootElement.contains(anchorNode) ||
+      !this._rootElement.contains(focusNode)
+    ) {
+      return;
+    }
+
     const caretRange = caretRangeFromPoint(rect.x, rect.y);
 
     let isNative = false;
@@ -511,7 +550,7 @@ export class TextEditor {
     if (rangeStatic) {
       this._signals.updateRangeStatic.emit([
         rangeStatic,
-        isNative ? 'native' : 'outside',
+        isNative ? 'native' : 'other',
       ]);
     }
   }
@@ -520,22 +559,14 @@ export class TextEditor {
     newRangStatic,
     origin,
   ]: UpdateRangeStaticProp): void {
-    if (
-      this._rangeStatic &&
-      newRangStatic &&
-      this._rangeStatic.index === newRangStatic.index &&
-      this._rangeStatic.length === newRangStatic.length
-    ) {
-      return;
-    }
-
     this._rangeStatic = newRangStatic;
     if (this._rangeStatic && origin !== 'native') {
       const newRange = this.toDomRange(this._rangeStatic);
-
       if (newRange) {
         const selection = window.getSelection();
         if (selection) {
+          this._selectionLock = true;
+
           selection.removeAllRanges();
           selection.addRange(newRange);
         }
@@ -562,7 +593,7 @@ function textPointToDomPoint(
   }
 
   if (!rootElement.contains(text)) {
-    return null;
+    throw new Error('text is not in root element');
   }
 
   const textNodes = Array.from(
