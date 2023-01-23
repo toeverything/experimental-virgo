@@ -7,7 +7,12 @@ import {
 } from './constant.js';
 import { caretRangeFromPoint, Signal } from '@blocksuite/global/utils';
 import { render } from 'lit-html';
-import type { BaseArrtiubtes, DeltaInsert, DeltaInserts } from './types.js';
+import type {
+  BaseArrtiubtes,
+  DeltaInsert,
+  DeltaInserts,
+  TextAttributes,
+} from './types.js';
 import { VirgoLine } from './components/virgo-line.js';
 import { renderElement } from './utils/render-element.js';
 import { deltaInsersToChunks } from './utils.js';
@@ -37,7 +42,6 @@ export type UpdateRangeStaticProp = [
 ];
 export interface TextEditorSignals {
   updateRangeStatic: Signal<UpdateRangeStaticProp>;
-  updateFocusState: Signal<boolean>;
 }
 
 export class TextEditor {
@@ -59,7 +63,7 @@ export class TextEditor {
     this.id = id;
     this._rootElement = rootElement;
     this._yText = yText;
-    this._signals = { ...signals, updateFocusState: new Signal() };
+    this._signals = { ...signals };
 
     this._rootElement.replaceChildren();
     this._rootElement.contentEditable = 'true';
@@ -105,28 +109,20 @@ export class TextEditor {
       'compositionend',
       this._onCompositionEnd.bind(this)
     );
-    this._rootElement.addEventListener('focus', this._onFocus.bind(this));
-    this._rootElement.addEventListener('blur', this._onBlur.bind(this));
 
     yText.observe(this._onYTextChange.bind(this));
 
     this._signals.updateRangeStatic.on(this._onUpdateRangeStatic.bind(this));
-    this._signals.updateFocusState.on(this._onUpdateFocusState.bind(this));
   }
 
-  getDeltaByRangeStatic(rangeStatic: RangeStatic): DeltaInsert | null {
+  getDeltaByRangeIndex(rangeIndex: RangeStatic['index']): DeltaInsert | null {
     const deltas = this._yText.toDelta() as DeltaInserts;
 
     let index = 0;
     for (let i = 0; i < deltas.length; i++) {
       const delta = deltas[i];
-      if (index + delta.insert.length >= rangeStatic.index) {
-        const start = rangeStatic.index - index;
-        const end = start + rangeStatic.length;
-        return {
-          insert: delta.insert.slice(start, end),
-          attributes: delta.attributes,
-        };
+      if (index + delta.insert.length >= rangeIndex) {
+        return delta;
       }
       index += delta.insert.length;
     }
@@ -151,9 +147,9 @@ export class TextEditor {
   }
 
   insertText(rangeStatic: RangeStatic, text: string): void {
+    const currentDelta = this.getDeltaByRangeIndex(rangeStatic.index);
     this._yText.delete(rangeStatic.index, rangeStatic.length);
 
-    const currentDelta = this.getDeltaByRangeStatic(rangeStatic);
     if (
       rangeStatic.index > 0 &&
       currentDelta &&
@@ -168,6 +164,35 @@ export class TextEditor {
   insertLineBreak(rangeStatic: RangeStatic): void {
     this._yText.delete(rangeStatic.index, rangeStatic.length);
     this._yText.insert(rangeStatic.index, '\n', { type: 'line-break' });
+  }
+
+  formatText(rangeStatic: RangeStatic, attributes: TextAttributes): void {
+    this._yText.format(rangeStatic.index, rangeStatic.length, attributes);
+  }
+
+  resetText(rangeStatic: RangeStatic): void {
+    const coverDeltas: DeltaInserts = [];
+    for (
+      let i = rangeStatic.index;
+      i <= rangeStatic.index + rangeStatic.length;
+      i++
+    ) {
+      const delta = this.getDeltaByRangeIndex(i);
+      if (delta) {
+        coverDeltas.push(delta);
+      }
+    }
+
+    const unset = Object.fromEntries(
+      coverDeltas.flatMap(delta =>
+        Object.keys(delta.attributes).map(key => [key, null])
+      )
+    );
+
+    this._yText.format(rangeStatic.index, rangeStatic.length, {
+      ...unset,
+      type: 'base',
+    });
   }
 
   /**
@@ -478,14 +503,6 @@ export class TextEditor {
     }
   }
 
-  private _onFocus(): void {
-    this._signals.updateFocusState.emit(true);
-  }
-
-  private _onBlur(): void {
-    this._signals.updateFocusState.emit(false);
-  }
-
   private _onYTextChange(): void {
     const deltas = this._yText.toDelta() as DeltaInserts;
     const chunks = deltaInsersToChunks(deltas);
@@ -553,7 +570,7 @@ export class TextEditor {
     }
   }
 
-  private _onSelectStart(event: Event): void {
+  private _onSelectStart(): void {
     this._selectionLock = false;
   }
 
@@ -574,12 +591,6 @@ export class TextEditor {
           selection.addRange(newRange);
         }
       }
-    }
-  }
-
-  private _onUpdateFocusState(isFocused: boolean): void {
-    if (!isFocused) {
-      this._signals.updateRangeStatic.emit([null, 'native']);
     }
   }
 }

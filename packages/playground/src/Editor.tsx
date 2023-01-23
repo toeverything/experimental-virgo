@@ -12,6 +12,9 @@ export const Editor = () => {
   const editorARootRef = useRef<HTMLDivElement>(null);
   const editorBRootRef = useRef<HTMLDivElement>(null);
 
+  const editorARef = useRef<TextEditor | null>(null);
+  const editorBRef = useRef<TextEditor | null>(null);
+
   const [rangeStaticA, setRangeStaticA] = useState<RangeStatic | null>(null);
   const [rangeStaticB, setRangeStaticB] = useState<RangeStatic | null>(null);
 
@@ -41,7 +44,7 @@ export const Editor = () => {
         setRangeStaticA(range);
       });
 
-      const editorA = new TextEditor('A', editorARootRef.current, textA, {
+      editorARef.current = new TextEditor('A', editorARootRef.current, textA, {
         updateRangeStatic: signal,
       });
     }
@@ -54,7 +57,7 @@ export const Editor = () => {
         setRangeStaticB(range);
       });
 
-      const editorB = new TextEditor('B', editorBRootRef.current, textB, {
+      editorBRef.current = new TextEditor('B', editorBRootRef.current, textB, {
         updateRangeStatic: signal,
       });
     }
@@ -70,7 +73,7 @@ export const Editor = () => {
           contentEditable={true}
           ref={editorARootRef}
         ></div>
-        <div className={'p-2 grid grid-rows-[1fr_40px_40px]'}>
+        <div className={'p-2 grid grid-rows-[1fr_40px_40px_40px]'}>
           <div>{rangeStaticA ? JSON.stringify(rangeStaticA) : 'null'}</div>
           <SlButton
             onClick={() => {
@@ -90,6 +93,39 @@ export const Editor = () => {
           >
             Redo
           </SlButton>
+          <div className={'grid grid-cols-2'}>
+            <SlButton
+              onClick={() => {
+                if (editorARef.current) {
+                  const editor = editorARef.current;
+                  const rangeStatic = editor.getRangeStatic();
+                  if (rangeStatic) {
+                    editor.formatText(rangeStatic, {
+                      type: 'base',
+                      bold: true,
+                    });
+                    editor.setRangeStatic(rangeStatic);
+                  }
+                }
+              }}
+            >
+              Bold
+            </SlButton>
+            <SlButton
+              onClick={() => {
+                if (editorARef.current) {
+                  const editor = editorARef.current;
+                  const rangeStatic = editor.getRangeStatic();
+                  if (rangeStatic) {
+                    editor.resetText(rangeStatic);
+                    editor.setRangeStatic(rangeStatic);
+                  }
+                }
+              }}
+            >
+              Resset
+            </SlButton>
+          </div>
         </div>
       </div>
       <div className={'grid grid-cols-[80px_1fr_1fr]'}>
@@ -100,7 +136,7 @@ export const Editor = () => {
           contentEditable={true}
           ref={editorBRootRef}
         ></div>
-        <div className={'p-2 grid grid-rows-[1fr_40px_40px]'}>
+        <div className={'p-2 grid grid-rows-[1fr_40px_40px_40px]'}>
           <div>{rangeStaticB ? JSON.stringify(rangeStaticB) : 'null'}</div>
           <SlButton
             onClick={() => {
@@ -120,6 +156,39 @@ export const Editor = () => {
           >
             Redo
           </SlButton>
+          <div className={'grid grid-cols-2'}>
+            <SlButton
+              onClick={() => {
+                if (editorBRef.current) {
+                  const editor = editorBRef.current;
+                  const rangeStatic = editor.getRangeStatic();
+                  if (rangeStatic) {
+                    editor.formatText(rangeStatic, {
+                      type: 'base',
+                      bold: true,
+                    });
+                    editor.setRangeStatic(rangeStatic);
+                  }
+                }
+              }}
+            >
+              Bold
+            </SlButton>
+            <SlButton
+              onClick={() => {
+                if (editorBRef.current) {
+                  const editor = editorBRef.current;
+                  const rangeStatic = editor.getRangeStatic();
+                  if (rangeStatic) {
+                    editor.resetText(rangeStatic);
+                    editor.setRangeStatic(rangeStatic);
+                  }
+                }
+              }}
+            >
+              Resset
+            </SlButton>
+          </div>
         </div>
       </div>
     </div>
