@@ -85,9 +85,7 @@ export class TextEditor {
       'selectionchange',
       this._onSelectionChange.bind(this)
     );
-    document.addEventListener('selectstart', () => {
-      this._selectionLock = false;
-    });
+    document.addEventListener('selectstart', this._onSelectStart.bind(this));
 
     this._rootElement.addEventListener(
       'beforeinput',
@@ -555,6 +553,10 @@ export class TextEditor {
     }
   }
 
+  private _onSelectStart(event: Event): void {
+    this._selectionLock = false;
+  }
+
   private _onUpdateRangeStatic([
     newRangStatic,
     origin,
@@ -565,6 +567,7 @@ export class TextEditor {
       if (newRange) {
         const selection = window.getSelection();
         if (selection) {
+          // prevent selection change event handler execute
           this._selectionLock = true;
 
           selection.removeAllRanges();
