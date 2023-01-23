@@ -123,7 +123,7 @@ export const Editor = () => {
                 }
               }}
             >
-              Resset
+              Reset
             </SlButton>
           </div>
         </div>
@@ -186,7 +186,7 @@ export const Editor = () => {
                 }
               }}
             >
-              Resset
+              Reset
             </SlButton>
           </div>
         </div>
