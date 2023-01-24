@@ -166,6 +166,7 @@ export class TextEditor {
     this._yText.insert(rangeStatic.index, '\n', { type: 'line-break' });
   }
 
+  // TODO avoid format line break
   formatText(rangeStatic: RangeStatic, attributes: TextAttributes): void {
     this._yText.format(rangeStatic.index, rangeStatic.length, attributes);
   }
