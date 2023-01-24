@@ -504,7 +504,14 @@ export class TextEditor {
   }
 
   private _onYTextChange(): void {
-    const deltas = this._yText.toDelta() as DeltaInserts;
+    const deltas = (this._yText.toDelta() as DeltaInserts).flatMap(d => {
+      if (d.attributes.type === 'line-break') {
+        return d.insert
+          .split('')
+          .map(c => ({ insert: c, attributes: d.attributes }));
+      }
+      return d;
+    }) as DeltaInserts;
     const chunks = deltaInsersToChunks(deltas);
 
     // every chunk is a line
