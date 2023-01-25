@@ -1,6 +1,5 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { Editor } from './Editor';
-import { TestEditor } from './TestEditor';
 
 const router = createBrowserRouter([
   {
@@ -9,7 +8,7 @@ const router = createBrowserRouter([
   },
   {
     path: 'test/:id',
-    element: <TestEditor></TestEditor>,
+    element: <Editor></Editor>,
   },
 ]);
 
@@ -19,7 +18,9 @@ export const App = () => {
       className={'grid justify-center items-center h-full w-full bg-[#242424]'}
     >
       <div
-        className={'w-[700px] h-96 bg-[#202124] text-[#d5d5cf] rounded-md p-2'}
+        className={
+          'w-[1200px] h-[600px] bg-[#202124] text-[#d5d5cf] rounded-md p-2'
+        }
       >
         <RouterProvider router={router}></RouterProvider>
       </div>

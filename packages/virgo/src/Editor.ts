@@ -5,14 +5,9 @@ import {
   TEXT_LINE_CLASS,
   ZERO_WIDTH_SPACE,
 } from './constant.js';
-import { caretRangeFromPoint, Signal } from '@blocksuite/global/utils';
+import { assertExists, Signal } from '@blocksuite/global/utils';
 import { render } from 'lit-html';
-import type {
-  BaseArrtiubtes,
-  DeltaInsert,
-  DeltaInserts,
-  TextAttributes,
-} from './types.js';
+import type { BaseArrtiubtes, DeltaInsert, TextAttributes } from './types.js';
 import { VirgoLine } from './components/virgo-line.js';
 import { renderElement } from './utils/render-element.js';
 import { deltaInsersToChunks } from './utils.js';
@@ -40,37 +35,41 @@ export type UpdateRangeStaticProp = [
   RangeStatic | null,
   'native' | 'input' | 'other'
 ];
-export interface TextEditorSignals {
-  updateRangeStatic: Signal<UpdateRangeStaticProp>;
-}
 
 export class TextEditor {
-  private _rootElement: HTMLElement;
+  private _rootElement: HTMLElement | null = null;
   private _yText: Y.Text;
   private _rangeStatic: RangeStatic | null = null;
-  private _signals: TextEditorSignals;
   private _isComposing = false;
-  private _selectionLock = false;
 
-  id: string;
+  signals: {
+    updateRangeStatic: Signal<UpdateRangeStaticProp>;
+  };
 
-  constructor(
-    id: string,
-    rootElement: TextEditor['_rootElement'],
-    yText: TextEditor['_yText'],
-    signals: Pick<TextEditorSignals, 'updateRangeStatic'>
-  ) {
-    this.id = id;
-    this._rootElement = rootElement;
+  constructor(yText: TextEditor['_yText']) {
     this._yText = yText;
-    this._signals = { ...signals };
+    this.signals = {
+      updateRangeStatic: new Signal<UpdateRangeStaticProp>(),
+    };
 
+    document.addEventListener(
+      'selectionchange',
+      this._onSelectionChange.bind(this)
+    );
+
+    yText.observe(this._onYTextChange.bind(this));
+
+    this.signals.updateRangeStatic.on(this._onUpdateRangeStatic.bind(this));
+  }
+
+  mount(rootElement: HTMLElement): void {
+    this._rootElement = rootElement;
     this._rootElement.replaceChildren();
     this._rootElement.contentEditable = 'true';
     this._rootElement.classList.add(EDITOR_ROOT_CLASS);
     this._rootElement.style.display = 'block';
 
-    const deltas = this._yText.toDelta() as DeltaInserts;
+    const deltas = this._yText.toDelta() as DeltaInsert[];
     const chunks = deltaInsersToChunks(deltas);
 
     // every chunk is a line
@@ -84,12 +83,6 @@ export class TextEditor {
         render(VirgoLine(chunk.map(d => renderElement(d))), this._rootElement);
       }
     }
-
-    document.addEventListener(
-      'selectionchange',
-      this._onSelectionChange.bind(this)
-    );
-    document.addEventListener('selectstart', this._onSelectStart.bind(this));
 
     this._rootElement.addEventListener(
       'beforeinput',
@@ -109,14 +102,10 @@ export class TextEditor {
       'compositionend',
       this._onCompositionEnd.bind(this)
     );
-
-    yText.observe(this._onYTextChange.bind(this));
-
-    this._signals.updateRangeStatic.on(this._onUpdateRangeStatic.bind(this));
   }
 
   getDeltaByRangeIndex(rangeIndex: RangeStatic['index']): DeltaInsert | null {
-    const deltas = this._yText.toDelta() as DeltaInserts;
+    const deltas = this._yText.toDelta() as DeltaInsert[];
 
     let index = 0;
     for (let i = 0; i < deltas.length; i++) {
@@ -130,7 +119,28 @@ export class TextEditor {
     return null;
   }
 
-  getRootElement(): HTMLElement {
+  getDeltasByRangeStatic(
+    rangeStatic: RangeStatic
+  ): [DeltaInsert, RangeStatic][] {
+    const deltas = this._yText.toDelta() as DeltaInsert[];
+
+    const result: [DeltaInsert, RangeStatic][] = [];
+    let index = 0;
+    for (let i = 0; i < deltas.length; i++) {
+      const delta = deltas[i];
+      if (
+        index + delta.insert.length >= rangeStatic.index &&
+        index < rangeStatic.index + rangeStatic.length
+      ) {
+        result.push([delta, { index, length: delta.insert.length }]);
+      }
+      index += delta.insert.length;
+    }
+
+    return result;
+  }
+
+  getRootElement(): HTMLElement | null {
     return this._rootElement;
   }
 
@@ -139,7 +149,7 @@ export class TextEditor {
   }
 
   setRangeStatic(rangeStatic: RangeStatic): void {
-    this._signals.updateRangeStatic.emit([rangeStatic, 'other']);
+    this.signals.updateRangeStatic.emit([rangeStatic, 'other']);
   }
 
   deleteText(rangeStatic: RangeStatic): void {
@@ -167,12 +177,45 @@ export class TextEditor {
   }
 
   // TODO avoid format line break
-  formatText(rangeStatic: RangeStatic, attributes: TextAttributes): void {
+  formatText(
+    rangeStatic: RangeStatic,
+    attributes: TextAttributes,
+    options: {
+      match?: (delta: DeltaInsert, deltaRangeStatic: RangeStatic) => boolean;
+      mode?: 'replace' | 'merge';
+    } = {}
+  ): void {
+    const { match = () => true, mode = 'replace' } = options;
+    const deltas = this.getDeltasByRangeStatic(rangeStatic);
+
+    for (const [delta, deltaRangeStatic] of deltas) {
+      if (match(delta, deltaRangeStatic)) {
+        const goalRangeStatic = {
+          index: Math.max(rangeStatic.index, deltaRangeStatic.index),
+          length:
+            Math.min(
+              rangeStatic.index + rangeStatic.length,
+              deltaRangeStatic.index + deltaRangeStatic.length
+            ) - Math.max(rangeStatic.index, deltaRangeStatic.index),
+        };
+
+        if (mode === 'replace') {
+          this.resetText(goalRangeStatic);
+        }
+
+        this._yText.format(
+          goalRangeStatic.index,
+          goalRangeStatic.length,
+          attributes
+        );
+      }
+    }
+
     this._yText.format(rangeStatic.index, rangeStatic.length, attributes);
   }
 
   resetText(rangeStatic: RangeStatic): void {
-    const coverDeltas: DeltaInserts = [];
+    const coverDeltas: DeltaInsert[] = [];
     for (
       let i = rangeStatic.index;
       i <= rangeStatic.index + rangeStatic.length;
@@ -200,6 +243,8 @@ export class TextEditor {
    * calculate the dom selection from rangeStatic for **this Editor**
    */
   toDomRange(rangeStatic: RangeStatic): Range | null {
+    assertExists(this._rootElement);
+
     const lineElements = Array.from(
       this._rootElement.querySelectorAll(`.${TEXT_LINE_CLASS}`)
     );
@@ -279,8 +324,9 @@ export class TextEditor {
    *    the second is {index: 0, length: 6}, the third is {index: 0, length: 4}
    */
   toRangeStatic(selection: Selection): RangeStatic | null {
-    const { anchorNode, anchorOffset, focusNode, focusOffset, isCollapsed } =
-      selection;
+    assertExists(this._rootElement);
+
+    const { anchorNode, anchorOffset, focusNode, focusOffset } = selection;
     if (!anchorNode || !focusNode) {
       return null;
     }
@@ -297,29 +343,6 @@ export class TextEditor {
     if (focusNode instanceof Text && ifVirgoText(focusNode)) {
       focusText = focusNode;
       focusTextOffset = focusOffset;
-    }
-
-    if (isCollapsed) {
-      const rect = selection.getRangeAt(0).getBoundingClientRect();
-      const range = caretRangeFromPoint(rect.x, rect.y);
-
-      if (
-        range &&
-        range.startContainer instanceof Text &&
-        ifVirgoText(range.startContainer)
-      ) {
-        anchorText = range.startContainer as Text;
-        anchorTextOffset = range.startOffset;
-      }
-
-      if (
-        range &&
-        range.endContainer instanceof Text &&
-        ifVirgoText(range.endContainer)
-      ) {
-        focusText = range.endContainer as Text;
-        focusTextOffset = range.endOffset;
-      }
     }
 
     // case 1
@@ -422,7 +445,7 @@ export class TextEditor {
     if (inputType === 'insertText' && this._rangeStatic.index >= 0 && data) {
       this.insertText(this._rangeStatic, data);
 
-      this._signals.updateRangeStatic.emit([
+      this.signals.updateRangeStatic.emit([
         {
           index: this._rangeStatic.index + data.length,
           length: 0,
@@ -435,7 +458,7 @@ export class TextEditor {
     ) {
       this.insertLineBreak(this._rangeStatic);
 
-      this._signals.updateRangeStatic.emit([
+      this.signals.updateRangeStatic.emit([
         {
           index: this._rangeStatic.index + 1,
           length: 0,
@@ -449,7 +472,7 @@ export class TextEditor {
       if (this._rangeStatic.length > 0) {
         this.deleteText(this._rangeStatic);
 
-        this._signals.updateRangeStatic.emit([
+        this.signals.updateRangeStatic.emit([
           {
             index: this._rangeStatic.index,
             length: 0,
@@ -467,7 +490,7 @@ export class TextEditor {
           length: deletedChracater.length,
         });
 
-        this._signals.updateRangeStatic.emit([
+        this.signals.updateRangeStatic.emit([
           {
             index: this._rangeStatic.index - deletedChracater.length,
             length: 0,
@@ -494,7 +517,7 @@ export class TextEditor {
     if (this._rangeStatic.index >= 0 && data) {
       this.insertText(this._rangeStatic, data);
 
-      this._signals.updateRangeStatic.emit([
+      this.signals.updateRangeStatic.emit([
         {
           index: this._rangeStatic.index + data.length,
           length: 0,
@@ -505,14 +528,16 @@ export class TextEditor {
   }
 
   private _onYTextChange(): void {
-    const deltas = (this._yText.toDelta() as DeltaInserts).flatMap(d => {
+    assertExists(this._rootElement);
+
+    const deltas = (this._yText.toDelta() as DeltaInsert[]).flatMap(d => {
       if (d.attributes.type === 'line-break') {
         return d.insert
           .split('')
           .map(c => ({ insert: c, attributes: d.attributes }));
       }
       return d;
-    }) as DeltaInserts;
+    }) as DeltaInsert[];
     const chunks = deltaInsersToChunks(deltas);
 
     // every chunk is a line
@@ -528,12 +553,15 @@ export class TextEditor {
   }
 
   private _onSelectionChange(): void {
-    if (this._isComposing || this._selectionLock) {
+    assertExists(this._rootElement);
+    if (this._isComposing) {
       return;
     }
 
-    const selection = window.getSelection();
-
+    const root = findDocumentOrShadowRoot(this);
+    // @ts-ignore
+    const selection = root.getSelection();
+    console.log(selection);
     if (!selection) {
       return;
     }
@@ -542,9 +570,7 @@ export class TextEditor {
       return;
     }
 
-    const range = selection.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    const { anchorNode, anchorOffset, focusNode, focusOffset } = selection;
+    const { anchorNode, focusNode } = selection;
 
     if (
       !this._rootElement.contains(anchorNode) ||
@@ -553,33 +579,10 @@ export class TextEditor {
       return;
     }
 
-    const caretRange = caretRangeFromPoint(rect.x, rect.y);
-
-    let isNative = false;
-    if (
-      !selection.isCollapsed ||
-      (anchorNode &&
-        focusNode &&
-        caretRange &&
-        caretRange.startContainer === anchorNode &&
-        caretRange.startOffset === anchorOffset &&
-        caretRange.endContainer === focusNode &&
-        caretRange.endOffset === focusOffset)
-    ) {
-      isNative = true;
-    }
-
     const rangeStatic = this.toRangeStatic(selection);
     if (rangeStatic) {
-      this._signals.updateRangeStatic.emit([
-        rangeStatic,
-        isNative ? 'native' : 'other',
-      ]);
+      this.signals.updateRangeStatic.emit([rangeStatic, 'native']);
     }
-  }
-
-  private _onSelectStart(): void {
-    this._selectionLock = false;
   }
 
   private _onUpdateRangeStatic([
@@ -590,11 +593,10 @@ export class TextEditor {
     if (this._rangeStatic && origin !== 'native') {
       const newRange = this.toDomRange(this._rangeStatic);
       if (newRange) {
-        const selection = window.getSelection();
+        const root = findDocumentOrShadowRoot(this);
+        // @ts-ignore
+        const selection = root.getSelection();
         if (selection) {
-          // prevent selection change event handler execute
-          this._selectionLock = true;
-
           selection.removeAllRanges();
           selection.addRange(newRange);
         }
@@ -686,4 +688,24 @@ function getTextNodeFromElement(element: Element): Text | null {
 
 function ifVirgoText(text: Text): boolean {
   return text.parentElement?.classList.contains(TEXT_CLASS) ?? false;
+}
+
+function findDocumentOrShadowRoot(editor: TextEditor): Document | ShadowRoot {
+  const el = editor.getRootElement();
+
+  if (!el) {
+    throw new Error('editor root element not found');
+  }
+
+  const root = el.getRootNode();
+
+  if (
+    (root instanceof Document || root instanceof ShadowRoot) &&
+    // @ts-ignore
+    root.getSelection != null
+  ) {
+    return root;
+  }
+
+  return el.ownerDocument;
 }

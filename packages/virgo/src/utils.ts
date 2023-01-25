@@ -1,11 +1,11 @@
-import type { DeltaInserts } from './types.js';
+import type { DeltaInsert } from './types.js';
 
-export function deltaInsersToChunks(delta: DeltaInserts): DeltaInserts[] {
+export function deltaInsersToChunks(delta: DeltaInsert[]): DeltaInsert[][] {
   if (delta.length === 0) {
     return [[]];
   }
 
-  function* chunksGenerator(arr: DeltaInserts) {
+  function* chunksGenerator(arr: DeltaInsert[]) {
     let start = 0;
     for (let i = 0; i < arr.length; i++) {
       if (arr[i].attributes.type === 'line-break') {

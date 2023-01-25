@@ -1,194 +1,119 @@
 import * as Y from 'yjs';
-import { useEffect, useRef, useState } from 'react';
-import {
-  RangeStatic,
-  Signal,
-  TextEditor,
-  UpdateRangeStaticProp,
-} from '@blocksuite/virgo';
-import { SlButton } from '@shoelace-style/shoelace/dist/react';
+import { useEffect, useRef } from 'react';
+import { RichText } from './components/rich-text';
+import { RangeStatic, TextEditor } from '@blocksuite/virgo';
+import type { DeltaInsert } from '@blocksuite/virgo';
+import { proxy, useSnapshot } from 'valtio';
+import { ToolBar } from './ToolBar';
+
+const store = proxy<{
+  docA: {
+    rangeStatic: RangeStatic | null;
+    deltas: DeltaInsert[];
+  };
+  docB: {
+    rangeStatic: RangeStatic | null;
+    deltas: DeltaInsert[];
+  };
+}>({
+  docA: {
+    rangeStatic: null,
+    deltas: [],
+  },
+  docB: {
+    rangeStatic: null,
+    deltas: [],
+  },
+});
+
+const TEXT_ID = 'virgo';
+const yDocA = new Y.Doc();
+const yDocB = new Y.Doc();
+
+yDocA.on('update', update => {
+  Y.applyUpdate(yDocB, update);
+  store.docA.deltas = yDocA.getText(TEXT_ID).toDelta();
+});
+
+yDocB.on('update', update => {
+  Y.applyUpdate(yDocA, update);
+  store.docB.deltas = yDocB.getText(TEXT_ID).toDelta();
+});
+
+const textA = yDocA.getText(TEXT_ID);
+const undoManagerA = new Y.UndoManager(textA);
+textA.insert(0, 'Hello World', { type: 'base' });
+textA.insert(2, 'Haa', { type: 'base', bold: true });
+const editorA = new TextEditor(textA);
+editorA.signals.updateRangeStatic.on(([rangeStatic]) => {
+  store.docA.rangeStatic = rangeStatic;
+});
+
+const textB = yDocB.getText(TEXT_ID);
+const undoManagerB = new Y.UndoManager(textB);
+const editorB = new TextEditor(textB);
+editorB.signals.updateRangeStatic.on(([rangeStatic]) => {
+  store.docB.rangeStatic = rangeStatic;
+});
 
 export const Editor = () => {
-  const editorARootRef = useRef<HTMLDivElement>(null);
-  const editorBRootRef = useRef<HTMLDivElement>(null);
+  const containerA = useRef<HTMLDivElement>(null);
+  const containerB = useRef<HTMLDivElement>(null);
 
-  const editorARef = useRef<TextEditor | null>(null);
-  const editorBRef = useRef<TextEditor | null>(null);
-
-  const [rangeStaticA, setRangeStaticA] = useState<RangeStatic | null>(null);
-  const [rangeStaticB, setRangeStaticB] = useState<RangeStatic | null>(null);
-
-  const undoManagerA = useRef<Y.UndoManager | null>(null);
-  const undoManagerB = useRef<Y.UndoManager | null>(null);
+  const storeSnap = useSnapshot(store);
 
   useEffect(() => {
-    const yDocA = new Y.Doc();
-    const yDocB = new Y.Doc();
+    if (containerA.current) {
+      const container = containerA.current;
 
-    yDocA.on('update', update => {
-      Y.applyUpdate(yDocB, update);
-    });
-
-    yDocB.on('update', update => {
-      Y.applyUpdate(yDocA, update);
-    });
-
-    if (editorARootRef.current) {
-      const textA = yDocA.getText('text');
-      undoManagerA.current = new Y.UndoManager(textA);
-      textA.insert(0, 'Hello World', { type: 'base' });
-      textA.insert(0, 'Haa', { type: 'base', bold: true });
-
-      const signal = new Signal<UpdateRangeStaticProp>();
-      signal.on(([range]) => {
-        setRangeStaticA(range);
-      });
-
-      editorARef.current = new TextEditor('A', editorARootRef.current, textA, {
-        updateRangeStatic: signal,
-      });
+      const richTextA = new RichText();
+      richTextA.editor = editorA;
+      container.appendChild(richTextA);
     }
-    if (editorBRootRef.current) {
-      const textB = yDocB.getText('text');
-      undoManagerB.current = new Y.UndoManager(textB);
 
-      const signal = new Signal<UpdateRangeStaticProp>();
-      signal.on(([range]) => {
-        setRangeStaticB(range);
-      });
+    if (containerB.current) {
+      const container = containerB.current;
 
-      editorBRef.current = new TextEditor('B', editorBRootRef.current, textB, {
-        updateRangeStatic: signal,
-      });
+      const richTextB = new RichText();
+      richTextB.editor = editorB;
+      container.appendChild(richTextB);
     }
   }, []);
 
   return (
-    <div className={'grid grid-rows-2 gap-4 h-full w-full'}>
-      <div className={'grid grid-cols-[80px_1fr_1fr]'}>
+    <div className={'grid grid-cols-2 gap-4 h-full w-full'}>
+      <div
+        className={
+          'grid grid-rows-[40px_repeat(3,minmax(0,1fr))] max-h-full overflow-scroll'
+        }
+      >
+        <ToolBar editor={editorA} undoManager={undoManagerA}></ToolBar>
         <div className={'p-2'}>Doc A</div>
         <div
           className={'p-2 bg-neutral-900 rounded-md'}
           suppressContentEditableWarning
-          contentEditable={true}
-          ref={editorARootRef}
+          ref={containerA}
         ></div>
-        <div className={'p-2 grid grid-rows-[1fr_40px_40px_40px]'}>
-          <div>{rangeStaticA ? JSON.stringify(rangeStaticA) : 'null'}</div>
-          <SlButton
-            onClick={() => {
-              if (undoManagerA.current) {
-                undoManagerA.current.undo();
-              }
-            }}
-          >
-            Undo
-          </SlButton>
-          <SlButton
-            onClick={() => {
-              if (undoManagerA.current) {
-                undoManagerA.current.redo();
-              }
-            }}
-          >
-            Redo
-          </SlButton>
-          <div className={'grid grid-cols-2'}>
-            <SlButton
-              onClick={() => {
-                if (editorARef.current) {
-                  const editor = editorARef.current;
-                  const rangeStatic = editor.getRangeStatic();
-                  if (rangeStatic) {
-                    editor.formatText(rangeStatic, {
-                      type: 'base',
-                      bold: true,
-                    });
-                    editor.setRangeStatic(rangeStatic);
-                  }
-                }
-              }}
-            >
-              Bold
-            </SlButton>
-            <SlButton
-              onClick={() => {
-                if (editorARef.current) {
-                  const editor = editorARef.current;
-                  const rangeStatic = editor.getRangeStatic();
-                  if (rangeStatic) {
-                    editor.resetText(rangeStatic);
-                    editor.setRangeStatic(rangeStatic);
-                  }
-                }
-              }}
-            >
-              Reset
-            </SlButton>
-          </div>
+        <div className={'grid grid-rows-2'}>
+          <p>{JSON.stringify(storeSnap.docA.rangeStatic)}</p>
+          <p>{JSON.stringify(storeSnap.docA.deltas)}</p>
         </div>
       </div>
-      <div className={'grid grid-cols-[80px_1fr_1fr]'}>
+      <div
+        className={
+          'grid grid-rows-[40px_repeat(3,minmax(0,1fr))] max-h-full overflow-scroll'
+        }
+      >
+        <ToolBar editor={editorB} undoManager={undoManagerB}></ToolBar>
         <div className={'p-2'}>Doc B</div>
         <div
           className={'p-2 bg-neutral-900 rounded-md'}
           suppressContentEditableWarning
-          contentEditable={true}
-          ref={editorBRootRef}
+          ref={containerB}
         ></div>
-        <div className={'p-2 grid grid-rows-[1fr_40px_40px_40px]'}>
-          <div>{rangeStaticB ? JSON.stringify(rangeStaticB) : 'null'}</div>
-          <SlButton
-            onClick={() => {
-              if (undoManagerB.current) {
-                undoManagerB.current.undo();
-              }
-            }}
-          >
-            Undo
-          </SlButton>
-          <SlButton
-            onClick={() => {
-              if (undoManagerB.current) {
-                undoManagerB.current.redo();
-              }
-            }}
-          >
-            Redo
-          </SlButton>
-          <div className={'grid grid-cols-2'}>
-            <SlButton
-              onClick={() => {
-                if (editorBRef.current) {
-                  const editor = editorBRef.current;
-                  const rangeStatic = editor.getRangeStatic();
-                  if (rangeStatic) {
-                    editor.formatText(rangeStatic, {
-                      type: 'base',
-                      bold: true,
-                    });
-                    editor.setRangeStatic(rangeStatic);
-                  }
-                }
-              }}
-            >
-              Bold
-            </SlButton>
-            <SlButton
-              onClick={() => {
-                if (editorBRef.current) {
-                  const editor = editorBRef.current;
-                  const rangeStatic = editor.getRangeStatic();
-                  if (rangeStatic) {
-                    editor.resetText(rangeStatic);
-                    editor.setRangeStatic(rangeStatic);
-                  }
-                }
-              }}
-            >
-              Reset
-            </SlButton>
-          </div>
+        <div className={'grid grid-rows-2'}>
+          <p>{JSON.stringify(storeSnap.docB.rangeStatic)}</p>
+          <p>{JSON.stringify(storeSnap.docB.deltas)}</p>
         </div>
       </div>
     </div>

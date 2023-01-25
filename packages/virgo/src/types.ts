@@ -2,10 +2,10 @@ export type TextType = 'base' | 'line-break';
 
 export type BaseArrtiubtes = {
   type: 'base';
-  bold?: boolean;
-  italic?: boolean;
-  underline?: boolean;
-  strikethrough?: boolean;
+  bold?: true;
+  italic?: true;
+  underline?: true;
+  strikethrough?: true;
 };
 
 export type LineBreakAttributes = {
@@ -28,5 +28,3 @@ export type DeltaInsert<A extends TextAttributes = TextAttributes> = {
 export type Delta = Array<
   DeltaRetain | DeltaDelete | DeltaInsert | DeltaAttributes
 >;
-
-export type DeltaInserts = Array<DeltaInsert>;

@@ -10,19 +10,14 @@
   },
   "dependencies": {
     "@blocksuite/virgo": "workspace:*",
-    "@lexical/clipboard": "^0.7.5",
-    "@lexical/plain-text": "^0.7.5",
-    "@lexical/selection": "^0.7.5",
-    "@lexical/utils": "^0.7.5",
     "@shoelace-style/shoelace": "2.0.0-beta.88",
-    "lexical": "^0.7.5",
     "lit": "^2.6.1",
     "localforage": "^1.10.0",
     "match-sorter": "^6.3.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.6.2",
-    "sort-by": "^1.2.0",
+    "valtio": "^1.9.0",
     "yjs": "^13.5.44"
   },
   "devDependencies": {
