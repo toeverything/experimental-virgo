@@ -84,7 +84,7 @@ export const Editor = () => {
     <div className={'grid grid-cols-2 gap-4 h-full w-full'}>
       <div
         className={
-          'grid grid-rows-[40px_repeat(3,minmax(0,1fr))] max-h-full overflow-scroll'
+          'grid grid-rows-[40px_40px_repeat(2,minmax(0,1fr))] max-h-full overflow-scroll'
         }
       >
         <ToolBar editor={editorA} undoManager={undoManagerA}></ToolBar>
@@ -101,7 +101,7 @@ export const Editor = () => {
       </div>
       <div
         className={
-          'grid grid-rows-[40px_repeat(3,minmax(0,1fr))] max-h-full overflow-scroll'
+          'grid grid-rows-[40px_40px_repeat(2,minmax(0,1fr))] max-h-full overflow-scroll'
         }
       >
         <ToolBar editor={editorB} undoManager={undoManagerB}></ToolBar>
