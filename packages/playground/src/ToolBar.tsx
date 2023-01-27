@@ -33,7 +33,7 @@ export const ToolBar = ({
           format(editor, { bold: true });
         }}
       >
-        Bold
+        bold
       </SlButton>
       <SlButton
         onClick={() => {

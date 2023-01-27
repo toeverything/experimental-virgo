@@ -176,7 +176,6 @@ export class TextEditor {
     this._yText.insert(rangeStatic.index, '\n', { type: 'line-break' });
   }
 
-  // TODO avoid format line break
   formatText(
     rangeStatic: RangeStatic,
     attributes: TextAttributes,
@@ -189,6 +188,10 @@ export class TextEditor {
     const deltas = this.getDeltasByRangeStatic(rangeStatic);
 
     for (const [delta, deltaRangeStatic] of deltas) {
+      if (delta.attributes.type === 'line-break') {
+        continue;
+      }
+
       if (match(delta, deltaRangeStatic)) {
         const goalRangeStatic = {
           index: Math.max(rangeStatic.index, deltaRangeStatic.index),
@@ -210,8 +213,6 @@ export class TextEditor {
         );
       }
     }
-
-    this._yText.format(rangeStatic.index, rangeStatic.length, attributes);
   }
 
   resetText(rangeStatic: RangeStatic): void {
@@ -561,7 +562,7 @@ export class TextEditor {
     const root = findDocumentOrShadowRoot(this);
     // @ts-ignore
     const selection = root.getSelection();
-    console.log(selection);
+
     if (!selection) {
       return;
     }
