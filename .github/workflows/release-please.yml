@@ -15,6 +15,7 @@ jobs:
         with:
           command: manifest
           token: ${{secrets.GITHUB_TOKEN}}
+          pull-request-title-pattern: "chore: release ${version}"
           bump-minor-pre-major: true
           bump-patch-for-minor-pre-major: true
           draft: false
