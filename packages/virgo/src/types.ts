@@ -1,3 +1,5 @@
+import type { VirgoText } from './components/virgo-text.js';
+
 export type TextType = 'base' | 'line-break';
 
 export type BaseArrtiubtes = {
@@ -14,17 +16,14 @@ export type LineBreakAttributes = {
 
 export type TextAttributes = BaseArrtiubtes | LineBreakAttributes;
 
+export type TextElement = VirgoText;
+
 export type DeltaAttributes = {
   retain: number;
   attributes: TextAttributes;
 };
-export type DeltaRetain = { retain: number };
-export type DeltaDelete = { delete: number };
+
 export type DeltaInsert<A extends TextAttributes = TextAttributes> = {
   insert: string;
   attributes: A;
 };
-
-export type Delta = Array<
-  DeltaRetain | DeltaDelete | DeltaInsert | DeltaAttributes
->;

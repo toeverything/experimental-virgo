@@ -1,22 +1,11 @@
 import type * as Y from 'yjs';
-import {
-  EDITOR_ROOT_CLASS,
-  TEXT_CLASS,
-  TEXT_LINE_CLASS,
-  ZERO_WIDTH_SPACE,
-} from './constant.js';
+import { EDITOR_ROOT_CLASS, ZERO_WIDTH_SPACE } from './constant.js';
 import { assertExists, Signal } from '@blocksuite/global/utils';
-import { render } from 'lit-html';
-import type { BaseArrtiubtes, DeltaInsert, TextAttributes } from './types.js';
-import { VirgoLine } from './components/virgo-line.js';
+import type { DeltaInsert, TextAttributes } from './types.js';
 import { renderElement } from './utils/render-element.js';
 import { deltaInsersToChunks } from './utils.js';
+import { VirgoLine } from './components/virgo-line.js';
 import { VirgoText } from './components/virgo-text.js';
-
-const ZERO_WIDTH_SPACE_DELTA: DeltaInsert<BaseArrtiubtes> = {
-  insert: ZERO_WIDTH_SPACE,
-  attributes: { type: 'base' },
-};
 
 // TODO left right
 export interface RangeStatic {
@@ -67,28 +56,15 @@ export class TextEditor {
     this._rootElement.replaceChildren();
     this._rootElement.contentEditable = 'true';
     this._rootElement.classList.add(EDITOR_ROOT_CLASS);
-    this._rootElement.style.display = 'block';
 
     const deltas = this._yText.toDelta() as DeltaInsert[];
-    const chunks = deltaInsersToChunks(deltas);
-
-    // every chunk is a line
-    for (const chunk of chunks) {
-      if (chunk.length === 0) {
-        render(
-          VirgoLine([VirgoText(ZERO_WIDTH_SPACE_DELTA)]),
-          this._rootElement
-        );
-      } else {
-        render(VirgoLine(chunk.map(d => renderElement(d))), this._rootElement);
-      }
-    }
+    renderDeltas(deltas, this._rootElement);
 
     this._rootElement.addEventListener(
       'beforeinput',
       this._onBefoeInput.bind(this)
     );
-    this._rootElement.querySelectorAll(`.${TEXT_CLASS}`).forEach(textNode => {
+    this._rootElement.querySelectorAll('virgo-text').forEach(textNode => {
       textNode.addEventListener('dragstart', event => {
         event.preventDefault();
       });
@@ -240,6 +216,21 @@ export class TextEditor {
     });
   }
 
+  syncRangeStatic(): void {
+    if (this._rangeStatic) {
+      const newRange = this.toDomRange(this._rangeStatic);
+      if (newRange) {
+        const selectionRoot = findDocumentOrShadowRoot(this);
+        // @ts-ignore
+        const selection = selectionRoot.getSelection();
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        }
+      }
+    }
+  }
+
   /**
    * calculate the dom selection from rangeStatic for **this Editor**
    */
@@ -247,7 +238,7 @@ export class TextEditor {
     assertExists(this._rootElement);
 
     const lineElements = Array.from(
-      this._rootElement.querySelectorAll(`.${TEXT_LINE_CLASS}`)
+      this._rootElement.querySelectorAll('virgo-line')
     );
 
     // calculate anchorNode and focusNode
@@ -258,7 +249,7 @@ export class TextEditor {
     let index = 0;
     for (let i = 0; i < lineElements.length; i++) {
       const textElements = Array.from(
-        lineElements[i].querySelectorAll(`.${TEXT_CLASS}`)
+        lineElements[i].querySelectorAll('virgo-text')
       );
 
       for (let j = 0; j < textElements.length; j++) {
@@ -539,18 +530,8 @@ export class TextEditor {
       }
       return d;
     }) as DeltaInsert[];
-    const chunks = deltaInsersToChunks(deltas);
 
-    // every chunk is a line
-    const lines: Array<ReturnType<typeof VirgoLine>> = [];
-    for (const chunk of chunks) {
-      if (chunk.length === 0) {
-        lines.push(VirgoLine([VirgoText(ZERO_WIDTH_SPACE_DELTA)]));
-      } else {
-        lines.push(VirgoLine(chunk.map(d => renderElement(d))));
-      }
-    }
-    render(lines, this._rootElement);
+    renderDeltas(deltas, this._rootElement);
   }
 
   private _onSelectionChange(): void {
@@ -559,10 +540,9 @@ export class TextEditor {
       return;
     }
 
-    const root = findDocumentOrShadowRoot(this);
+    const selectionRoot = findDocumentOrShadowRoot(this);
     // @ts-ignore
-    const selection = root.getSelection();
-
+    const selection = selectionRoot.getSelection();
     if (!selection) {
       return;
     }
@@ -591,18 +571,14 @@ export class TextEditor {
     origin,
   ]: UpdateRangeStaticProp): void {
     this._rangeStatic = newRangStatic;
-    if (this._rangeStatic && origin !== 'native') {
-      const newRange = this.toDomRange(this._rangeStatic);
-      if (newRange) {
-        const root = findDocumentOrShadowRoot(this);
-        // @ts-ignore
-        const selection = root.getSelection();
-        if (selection) {
-          selection.removeAllRanges();
-          selection.addRange(newRange);
-        }
-      }
+
+    if (origin === 'native') {
+      return;
     }
+
+    this._rootElement?.blur();
+    // updates in lit are performed asynchronously
+    setTimeout(this.syncRangeStatic.bind(this), 0);
   }
 }
 
@@ -621,9 +597,9 @@ function textPointToDomPoint(
     throw new Error('text is not in root element');
   }
 
-  const textNodes = Array.from(
-    rootElement.querySelectorAll(`.${TEXT_CLASS}`)
-  ).map(textElement => getTextNodeFromElement(textElement));
+  const textNodes = Array.from(rootElement.querySelectorAll('virgo-text')).map(
+    textElement => getTextNodeFromElement(textElement)
+  );
   const goalIndex = textNodes.indexOf(text);
   let index = 0;
   for (const textNode of textNodes.slice(0, goalIndex)) {
@@ -643,14 +619,14 @@ function textPointToDomPoint(
     throw new Error('text element not found');
   }
 
-  const lineElement = text.parentElement.closest(`.${TEXT_LINE_CLASS}`);
+  const lineElement = textElement.closest('virgo-line');
 
   if (!lineElement) {
     throw new Error('line element not found');
   }
 
   const lineIndex = Array.from(
-    rootElement.querySelectorAll(`.${TEXT_LINE_CLASS}`)
+    rootElement.querySelectorAll('virgo-line')
   ).indexOf(lineElement);
 
   return { text, index: index + lineIndex };
@@ -677,7 +653,13 @@ function calculateTextLength(text: Text): number {
 }
 
 function getTextNodeFromElement(element: Element): Text | null {
-  const textNode = Array.from(element.childNodes).find(
+  const spanElement = element.querySelector('span');
+
+  if (!spanElement) {
+    return null;
+  }
+
+  const textNode = Array.from(spanElement.childNodes).find(
     node => node instanceof Text
   );
 
@@ -688,7 +670,7 @@ function getTextNodeFromElement(element: Element): Text | null {
 }
 
 function ifVirgoText(text: Text): boolean {
-  return text.parentElement?.classList.contains(TEXT_CLASS) ?? false;
+  return text.parentElement?.dataset.virgoText === 'true' ?? false;
 }
 
 function findDocumentOrShadowRoot(editor: TextEditor): Document | ShadowRoot {
@@ -709,4 +691,30 @@ function findDocumentOrShadowRoot(editor: TextEditor): Document | ShadowRoot {
   }
 
   return el.ownerDocument;
+}
+
+function renderDeltas(deltas: DeltaInsert[], rootElement: HTMLElement) {
+  const chunks = deltaInsersToChunks(deltas);
+
+  // every chunk is a line
+  const lines: Array<VirgoLine> = [];
+  for (const chunk of chunks) {
+    if (chunk.length === 0) {
+      const virgoLine = new VirgoLine();
+
+      virgoLine.elements.push(new VirgoText());
+      lines.push(virgoLine);
+    } else {
+      const virgoLine = new VirgoLine();
+      for (const delta of chunk) {
+        const element = renderElement(delta);
+
+        virgoLine.elements.push(element);
+      }
+
+      lines.push(virgoLine);
+    }
+  }
+
+  rootElement.replaceChildren(...lines);
 }

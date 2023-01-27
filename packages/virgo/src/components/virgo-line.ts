@@ -1,5 +1,30 @@
-import { html } from 'lit-html';
-import { TEXT_LINE_CLASS } from '../constant.js';
+import { html, LitElement } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
+import type { TextElement } from '../types.js';
 
-export const VirgoLine = (children: Array<ReturnType<typeof html>>) =>
-  html`<div class=${TEXT_LINE_CLASS}>${children}</div>`;
+@customElement('virgo-line')
+export class VirgoLine extends LitElement {
+  @property({ attribute: false })
+  elements: TextElement[] = [];
+
+  render() {
+    return html`
+      <style>
+        virgo-line {
+          display: block;
+        }
+      </style>
+      <div>${this.elements}</div>
+    `;
+  }
+
+  createRenderRoot() {
+    return this;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'virgo-line': VirgoLine;
+  }
+}
