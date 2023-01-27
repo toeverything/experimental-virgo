@@ -3,6 +3,7 @@
   "plugins": ["node-workspace"],
   "release_type": "node",
   "separate-pull-requests": true,
+  "group-pull-request-title-pattern": "chore: release ${component} ${version}",
   "packages": {
     "packages/virgo": {}
   }
