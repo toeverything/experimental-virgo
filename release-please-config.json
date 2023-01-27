@@ -2,6 +2,7 @@
   "bootstrap-sha": "65dc86f1838ed63e67c5bc96f01f2e40f056b72f",
   "plugins": ["node-workspace"],
   "release_type": "node",
+  "group-pull-request-title-pattern": "chore: release ${version}",
   "packages": {
     "packages/virgo": {}
   }
