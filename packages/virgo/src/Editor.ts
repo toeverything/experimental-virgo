@@ -219,7 +219,7 @@ export class TextEditor {
   syncRangeStatic(): void {
     if (this._rangeStatic) {
       const newRange = this.toDomRange(this._rangeStatic);
-      console.log('syncRangeStatic', this._rangeStatic, newRange);
+
       if (newRange) {
         const selectionRoot = findDocumentOrShadowRoot(this);
         // @ts-ignore
