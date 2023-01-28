@@ -2,12 +2,11 @@ import type * as Y from 'yjs';
 import { EDITOR_ROOT_CLASS, ZERO_WIDTH_SPACE } from './constant.js';
 import { assertExists, Signal } from '@blocksuite/global/utils';
 import type { DeltaInsert, TextAttributes } from './types.js';
-import { renderElement } from './utils/render-element.js';
-import { deltaInsersToChunks } from './utils.js';
+import { renderElement } from './utils/render.js';
+import { deltaInsersToChunks } from './utils/convert.js';
 import { VirgoLine } from './components/virgo-line.js';
-import { VirgoText } from './components/virgo-text.js';
+import { BaseText } from './components/base-text.js';
 
-// TODO left right
 export interface RangeStatic {
   index: number;
   length: number;
@@ -64,11 +63,13 @@ export class TextEditor {
       'beforeinput',
       this._onBefoeInput.bind(this)
     );
-    this._rootElement.querySelectorAll('virgo-text').forEach(textNode => {
-      textNode.addEventListener('dragstart', event => {
-        event.preventDefault();
+    this._rootElement
+      .querySelectorAll('[data-virgo-text="true"]')
+      .forEach(textNode => {
+        textNode.addEventListener('dragstart', event => {
+          event.preventDefault();
+        });
       });
-    });
 
     this._rootElement.addEventListener(
       'compositionstart',
@@ -252,7 +253,7 @@ export class TextEditor {
     let index = 0;
     for (let i = 0; i < lineElements.length; i++) {
       const textElements = Array.from(
-        lineElements[i].querySelectorAll('virgo-text')
+        lineElements[i].querySelectorAll('[data-virgo-text="true"]')
       );
 
       for (let j = 0; j < textElements.length; j++) {
@@ -609,9 +610,9 @@ function textPointToDomPoint(
     throw new Error('text is not in root element');
   }
 
-  const textNodes = Array.from(rootElement.querySelectorAll('virgo-text')).map(
-    textElement => getTextNodeFromElement(textElement)
-  );
+  const textNodes = Array.from(
+    rootElement.querySelectorAll('[data-virgo-text="true"]')
+  ).map(textElement => getTextNodeFromElement(textElement));
   const goalIndex = textNodes.indexOf(text);
   let index = 0;
   for (const textNode of textNodes.slice(0, goalIndex)) {
@@ -665,7 +666,12 @@ function calculateTextLength(text: Text): number {
 }
 
 function getTextNodeFromElement(element: Element): Text | null {
-  const spanElement = element.querySelector('span');
+  let spanElement: Element | null = element;
+  if (element instanceof HTMLElement && element.dataset.virgoText === 'true') {
+    spanElement = element;
+  } else {
+    spanElement = element.querySelector('span');
+  }
 
   if (!spanElement) {
     return null;
@@ -681,7 +687,7 @@ function getTextNodeFromElement(element: Element): Text | null {
   return null;
 }
 
-function ifVirgoText(text: Text): boolean {
+function ifVirgoText(text: Text) {
   return text.parentElement?.dataset.virgoText === 'true' ?? false;
 }
 
@@ -714,7 +720,7 @@ function renderDeltas(deltas: DeltaInsert[], rootElement: HTMLElement) {
     if (chunk.length === 0) {
       const virgoLine = new VirgoLine();
 
-      virgoLine.elements.push(new VirgoText());
+      virgoLine.elements.push(new BaseText());
       lines.push(virgoLine);
     } else {
       const virgoLine = new VirgoLine();

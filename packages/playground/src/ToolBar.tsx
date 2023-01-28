@@ -27,7 +27,7 @@ export const ToolBar = ({
   undoManager: Y.UndoManager;
 }) => {
   return (
-    <div>
+    <div className={'flex'}>
       <SlButton
         onClick={() => {
           format(editor, { bold: true });
@@ -55,6 +55,19 @@ export const ToolBar = ({
         }}
       >
         strikethrough
+      </SlButton>
+      <SlButton
+        onClick={() => {
+          const rangeStatic = editor.getRangeStatic();
+          if (!rangeStatic) {
+            return;
+          }
+
+          editor.formatText(rangeStatic, { type: 'inline-code' });
+          editor.syncRangeStatic();
+        }}
+      >
+        inline code
       </SlButton>
       <SlButton
         onClick={() => {

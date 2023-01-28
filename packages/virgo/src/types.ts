@@ -1,6 +1,7 @@
-import type { VirgoText } from './components/virgo-text.js';
+import type { BaseText } from './components/base-text.js';
+import type { InlineCode } from './components/inline-code.js';
 
-export type TextType = 'base' | 'line-break';
+export type TextType = 'base' | 'line-break' | 'inline-code';
 
 export type BaseArrtiubtes = {
   type: 'base';
@@ -14,9 +15,16 @@ export type LineBreakAttributes = {
   type: 'line-break';
 };
 
-export type TextAttributes = BaseArrtiubtes | LineBreakAttributes;
+export type InlineCodeAttributes = {
+  type: 'inline-code';
+};
 
-export type TextElement = VirgoText;
+export type TextAttributes =
+  | BaseArrtiubtes
+  | LineBreakAttributes
+  | InlineCodeAttributes;
+
+export type TextElement = BaseText | InlineCode;
 
 export type DeltaAttributes = {
   retain: number;

@@ -43,7 +43,7 @@ yDocB.on('update', update => {
 const textA = yDocA.getText(TEXT_ID);
 const undoManagerA = new Y.UndoManager(textA);
 textA.insert(0, 'Hello World', { type: 'base' });
-textA.insert(2, 'Haa', { type: 'base', bold: true });
+textA.insert(2, 'Haa', { type: 'inline-code' });
 const editorA = new TextEditor(textA);
 editorA.signals.updateRangeStatic.on(([rangeStatic]) => {
   store.docA.rangeStatic = rangeStatic;

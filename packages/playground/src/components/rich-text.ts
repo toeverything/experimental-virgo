@@ -21,6 +21,17 @@ export class RichText extends LitElement {
           height: 100%;
           outline: none;
         }
+        code {
+          background: #505662;
+          color: #bddbfd;
+          font-family: Space Mono, apple-system, BlinkMacSystemFont,
+            Helvetica Neue, Tahoma, PingFang SC, Microsoft Yahei, Arial,
+            Hiragino Sans GB, sans-serif, Apple Color Emoji, Segoe UI Emoji,
+            Segoe UI Symbol, Noto Color Emoji;
+          padding: 0 5px;
+          border-radius: 5px;
+          font-size: 14px;
+        }
       </style>
       <div class="rich-text-container"></div>`;
   }

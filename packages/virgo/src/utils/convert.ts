@@ -1,4 +1,4 @@
-import type { DeltaInsert } from './types.js';
+import type { DeltaInsert } from '../types.js';
 
 export function deltaInsersToChunks(delta: DeltaInsert[]): DeltaInsert[][] {
   if (delta.length === 0) {
