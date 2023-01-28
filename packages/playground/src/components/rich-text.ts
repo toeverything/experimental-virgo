@@ -32,6 +32,15 @@ export class RichText extends LitElement {
           border-radius: 5px;
           font-size: 14px;
         }
+
+        a {
+          color: #bddbfd;
+          text-decoration: none;
+        }
+
+        a:hover {
+          text-decoration: underline;
+        }
       </style>
       <div class="rich-text-container"></div>`;
   }

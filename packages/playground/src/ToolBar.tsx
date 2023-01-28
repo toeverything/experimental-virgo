@@ -72,6 +72,22 @@ export const ToolBar = ({
       <SlButton
         onClick={() => {
           const rangeStatic = editor.getRangeStatic();
+          if (!rangeStatic) {
+            return;
+          }
+
+          editor.formatText(rangeStatic, {
+            type: 'link',
+            href: 'https://www.google.com',
+          });
+          editor.syncRangeStatic();
+        }}
+      >
+        link
+      </SlButton>
+      <SlButton
+        onClick={() => {
+          const rangeStatic = editor.getRangeStatic();
           if (rangeStatic) {
             editor.resetText(rangeStatic);
             editor.syncRangeStatic();
