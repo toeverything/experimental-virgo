@@ -16,7 +16,7 @@ function format(editor: TextEditor, mark: Partial<BaseArrtiubtes>): void {
       mode: 'merge',
     }
   );
-  editor.setRangeStatic(rangeStatic);
+  editor.syncRangeStatic();
 }
 
 export const ToolBar = ({
@@ -61,7 +61,7 @@ export const ToolBar = ({
           const rangeStatic = editor.getRangeStatic();
           if (rangeStatic) {
             editor.resetText(rangeStatic);
-            editor.setRangeStatic(rangeStatic);
+            editor.syncRangeStatic();
           }
         }}
       >

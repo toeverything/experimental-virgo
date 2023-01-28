@@ -217,19 +217,21 @@ export class TextEditor {
   }
 
   syncRangeStatic(): void {
-    if (this._rangeStatic) {
-      const newRange = this.toDomRange(this._rangeStatic);
+    setTimeout(() => {
+      if (this._rangeStatic) {
+        const newRange = this.toDomRange(this._rangeStatic);
 
-      if (newRange) {
-        const selectionRoot = findDocumentOrShadowRoot(this);
-        // @ts-ignore
-        const selection = selectionRoot.getSelection();
-        if (selection) {
-          selection.removeAllRanges();
-          selection.addRange(newRange);
+        if (newRange) {
+          const selectionRoot = findDocumentOrShadowRoot(this);
+          // @ts-ignore
+          const selection = selectionRoot.getSelection();
+          if (selection) {
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+          }
         }
       }
-    }
+    });
   }
 
   /**
