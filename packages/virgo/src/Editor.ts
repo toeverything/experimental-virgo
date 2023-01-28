@@ -219,6 +219,7 @@ export class TextEditor {
   syncRangeStatic(): void {
     if (this._rangeStatic) {
       const newRange = this.toDomRange(this._rangeStatic);
+      console.log('syncRangeStatic', this._rangeStatic, newRange);
       if (newRange) {
         const selectionRoot = findDocumentOrShadowRoot(this);
         // @ts-ignore
@@ -576,9 +577,18 @@ export class TextEditor {
       return;
     }
 
+    // avoid cursor jumping to beginning in a moment
     this._rootElement?.blur();
+
+    const fn = () => {
+      // when using input method _RangeStatic will return to the starting point,
+      // so we need to reassign
+      this._rangeStatic = newRangStatic;
+      this.syncRangeStatic();
+    };
+
     // updates in lit are performed asynchronously
-    setTimeout(this.syncRangeStatic.bind(this), 0);
+    setTimeout(fn, 0);
   }
 }
 
