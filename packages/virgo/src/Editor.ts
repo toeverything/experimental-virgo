@@ -90,6 +90,31 @@ export class TextEditor {
     );
   }
 
+  getBaseElement(node: Node): TextElement | null {
+    const element = node.parentElement?.closest('[data-virgo-element="true"]');
+
+    if (element) {
+      return element as TextElement;
+    }
+
+    return null;
+  }
+
+  getNativeSelection(): Selection | null {
+    const selectionRoot = findDocumentOrShadowRoot(this);
+    // @ts-ignore
+    const selection = selectionRoot.getSelection();
+    if (!selection) {
+      return null;
+    }
+
+    if (selection.rangeCount === 0) {
+      return null;
+    }
+
+    return selection;
+  }
+
   getDeltaByRangeIndex(rangeIndex: RangeStatic['index']): DeltaInsert | null {
     const deltas = this._yText.toDelta() as DeltaInsert[];
 
