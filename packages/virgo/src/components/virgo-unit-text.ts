@@ -16,9 +16,7 @@ export class VirgoUnitText extends LitElement {
   render() {
     // we need to avoid \n appearing before and after the span element, which will
     // cause the sync problem about the cursor position
-    return html`<span data-virgo-node="true" data-virgo-text="true"
-      >${this.delta.insert}</span
-    >`;
+    return html`<span data-virgo-text="true">${this.delta.insert}</span>`;
   }
 
   createRenderRoot() {

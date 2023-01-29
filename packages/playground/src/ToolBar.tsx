@@ -27,89 +27,93 @@ export const ToolBar = ({
   undoManager: Y.UndoManager;
 }) => {
   return (
-    <div className={'flex'}>
-      <SlButton
-        onClick={() => {
-          format(editor, { bold: true });
-        }}
-      >
-        bold
-      </SlButton>
-      <SlButton
-        onClick={() => {
-          format(editor, { italic: true });
-        }}
-      >
-        italic
-      </SlButton>
-      <SlButton
-        onClick={() => {
-          format(editor, { underline: true });
-        }}
-      >
-        underline
-      </SlButton>
-      <SlButton
-        onClick={() => {
-          format(editor, { strikethrough: true });
-        }}
-      >
-        strikethrough
-      </SlButton>
-      <SlButton
-        onClick={() => {
-          const rangeStatic = editor.getRangeStatic();
-          if (!rangeStatic) {
-            return;
-          }
+    <div className={'grid grid-rows-2'}>
+      <div>
+        <SlButton
+          onClick={() => {
+            format(editor, { bold: true });
+          }}
+        >
+          bold
+        </SlButton>
+        <SlButton
+          onClick={() => {
+            format(editor, { italic: true });
+          }}
+        >
+          italic
+        </SlButton>
+        <SlButton
+          onClick={() => {
+            format(editor, { underline: true });
+          }}
+        >
+          underline
+        </SlButton>
+        <SlButton
+          onClick={() => {
+            format(editor, { strikethrough: true });
+          }}
+        >
+          strikethrough
+        </SlButton>
+        <SlButton
+          onClick={() => {
+            const rangeStatic = editor.getRangeStatic();
+            if (!rangeStatic) {
+              return;
+            }
 
-          editor.formatText(rangeStatic, { type: 'inline-code' });
-          editor.syncRangeStatic();
-        }}
-      >
-        inline code
-      </SlButton>
-      <SlButton
-        onClick={() => {
-          const rangeStatic = editor.getRangeStatic();
-          if (!rangeStatic) {
-            return;
-          }
-
-          editor.formatText(rangeStatic, {
-            type: 'link',
-            href: 'https://www.google.com',
-          });
-          editor.syncRangeStatic();
-        }}
-      >
-        link
-      </SlButton>
-      <SlButton
-        onClick={() => {
-          const rangeStatic = editor.getRangeStatic();
-          if (rangeStatic) {
-            editor.resetText(rangeStatic);
+            editor.formatText(rangeStatic, { type: 'inline-code' });
             editor.syncRangeStatic();
-          }
-        }}
-      >
-        reset
-      </SlButton>
-      <SlButton
-        onClick={() => {
-          undoManager.undo();
-        }}
-      >
-        undo
-      </SlButton>
-      <SlButton
-        onClick={() => {
-          undoManager.redo();
-        }}
-      >
-        redo
-      </SlButton>
+          }}
+        >
+          inline code
+        </SlButton>
+        <SlButton
+          onClick={() => {
+            const rangeStatic = editor.getRangeStatic();
+            if (!rangeStatic) {
+              return;
+            }
+
+            editor.formatText(rangeStatic, {
+              type: 'link',
+              href: 'https://www.google.com',
+            });
+            editor.syncRangeStatic();
+          }}
+        >
+          link
+        </SlButton>
+      </div>
+      <div>
+        <SlButton
+          onClick={() => {
+            const rangeStatic = editor.getRangeStatic();
+            if (rangeStatic) {
+              editor.resetText(rangeStatic);
+              editor.syncRangeStatic();
+            }
+          }}
+        >
+          reset
+        </SlButton>
+        <SlButton
+          onClick={() => {
+            undoManager.undo();
+          }}
+        >
+          undo
+        </SlButton>
+        <SlButton
+          onClick={() => {
+            undoManager.redo();
+          }}
+        >
+          redo
+        </SlButton>
+      </div>
     </div>
   );
 };

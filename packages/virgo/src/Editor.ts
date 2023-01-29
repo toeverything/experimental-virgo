@@ -1,5 +1,5 @@
 import type * as Y from 'yjs';
-import { EDITOR_ROOT_CLASS, ZERO_WIDTH_SPACE } from './constant.js';
+import { ZERO_WIDTH_SPACE } from './constant.js';
 import { assertExists, Signal } from '@blocksuite/global/utils';
 import type { DeltaInsert, TextAttributes } from './types.js';
 import { renderElement } from './utils/render.js';
@@ -54,7 +54,7 @@ export class TextEditor {
     this._rootElement = rootElement;
     this._rootElement.replaceChildren();
     this._rootElement.contentEditable = 'true';
-    this._rootElement.classList.add(EDITOR_ROOT_CLASS);
+    this._rootElement.dataset.virgoRoot = 'true';
 
     const deltas = this._yText.toDelta() as DeltaInsert[];
     renderDeltas(deltas, this._rootElement);
@@ -217,6 +217,9 @@ export class TextEditor {
     });
   }
 
+  /**
+   * sync the dom selection from rangeStatic for **this Editor**
+   */
   syncRangeStatic(): void {
     setTimeout(() => {
       if (this._rangeStatic) {
@@ -600,7 +603,7 @@ function textPointToDomPoint(
   offset: number,
   rootElement: HTMLElement
 ): DomPoint | null {
-  if (!rootElement.classList.contains(EDITOR_ROOT_CLASS)) {
+  if (rootElement.dataset.virgoRoot !== 'true') {
     throw new Error(
       'textRangeToDomPoint should be called with editor root element'
     );
