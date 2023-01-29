@@ -5,6 +5,7 @@ import { RangeStatic, TextEditor } from '@blocksuite/virgo';
 import type { DeltaInsert } from '@blocksuite/virgo';
 import { proxy, useSnapshot } from 'valtio';
 import { ToolBar } from './ToolBar';
+import { renderElement } from './render';
 
 const store = proxy<{
   docA: {
@@ -44,14 +45,14 @@ const textA = yDocA.getText(TEXT_ID);
 const undoManagerA = new Y.UndoManager(textA);
 textA.insert(0, 'Hello World', { type: 'base' });
 textA.insert(2, 'Haa', { type: 'inline-code' });
-const editorA = new TextEditor(textA);
+const editorA = new TextEditor(textA, renderElement);
 editorA.signals.updateRangeStatic.on(([rangeStatic]) => {
   store.docA.rangeStatic = rangeStatic;
 });
 
 const textB = yDocB.getText(TEXT_ID);
 const undoManagerB = new Y.UndoManager(textB);
-const editorB = new TextEditor(textB);
+const editorB = new TextEditor(textB, renderElement);
 editorB.signals.updateRangeStatic.on(([rangeStatic]) => {
   store.docB.rangeStatic = rangeStatic;
 });

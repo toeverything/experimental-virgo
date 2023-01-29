@@ -1,12 +1,15 @@
+import {
+  DeltaInsert,
+  ZERO_WIDTH_SPACE,
+  VirgoUnitText,
+  BaseArrtiubtes,
+} from '@blocksuite/virgo';
 import { LitElement, html } from 'lit';
 import { property, customElement } from 'lit/decorators.js';
-import type {
-  BaseArrtiubtes,
-  DeltaInsert,
-  InlineCodeAttributes,
-} from '../types.js';
-import { ZERO_WIDTH_SPACE } from '../constant.js';
-import { VirgoUnitText } from './virgo-unit-text.js';
+
+export interface InlineCodeAttributes {
+  type: 'inline-code';
+}
 
 @customElement('v-inline-code')
 export class InlineCode extends LitElement {

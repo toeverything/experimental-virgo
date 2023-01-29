@@ -1,42 +1,31 @@
 import type { BaseText } from './components/base-text.js';
-import type { InlineCode } from './components/inline-code.js';
-import type { Link } from './components/link.js';
 
-export type TextType = 'base' | 'line-break' | 'inline-code' | 'link';
-
-export type BaseArrtiubtes = {
+export interface BaseArrtiubtes {
   type: 'base';
   bold?: true;
   italic?: true;
   underline?: true;
   strikethrough?: true;
-};
+}
 
-export type LineBreakAttributes = {
+export interface LineBreakAttributes {
   type: 'line-break';
-};
+}
 
-export type InlineCodeAttributes = {
-  type: 'inline-code';
-};
+export type BaseTextElement = BaseText;
+export type BaseTextAttributes = BaseArrtiubtes | LineBreakAttributes;
 
-export type LinkAttributes = {
-  type: 'link';
-  href: string;
-};
+export interface CustomTypes {
+  [key: string]: unknown;
+}
 
-export type TextAttributes =
-  | BaseArrtiubtes
-  | LineBreakAttributes
-  | InlineCodeAttributes
-  | LinkAttributes;
+type ExtendableKeys = 'Element' | 'Attributes';
+type ExtendedType<K extends ExtendableKeys, B> = unknown extends CustomTypes[K]
+  ? B
+  : CustomTypes[K];
 
-export type TextElement = BaseText | InlineCode | Link;
-
-export type DeltaAttributes = {
-  retain: number;
-  attributes: TextAttributes;
-};
+export type TextElement = ExtendedType<'Element', BaseTextElement>;
+export type TextAttributes = ExtendedType<'Attributes', BaseTextAttributes>;
 
 export type DeltaInsert<A extends TextAttributes = TextAttributes> = {
   insert: string;

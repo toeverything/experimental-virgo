@@ -1,11 +1,11 @@
 import type * as Y from 'yjs';
 import { ZERO_WIDTH_SPACE } from './constant.js';
 import { assertExists, Signal } from '@blocksuite/global/utils';
-import type { DeltaInsert, TextAttributes } from './types.js';
-import { renderElement } from './utils/render.js';
+import type { DeltaInsert, TextAttributes, TextElement } from './types.js';
 import { deltaInsersToChunks } from './utils/convert.js';
 import { VirgoLine } from './components/virgo-line.js';
 import { BaseText } from './components/base-text.js';
+import { baseRenderElement } from './utils/render.js';
 
 export interface RangeStatic {
   index: number;
@@ -29,13 +29,22 @@ export class TextEditor {
   private _yText: Y.Text;
   private _rangeStatic: RangeStatic | null = null;
   private _isComposing = false;
+  private _renderElement: (delta: DeltaInsert) => TextElement =
+    baseRenderElement;
 
   signals: {
     updateRangeStatic: Signal<UpdateRangeStaticProp>;
   };
 
-  constructor(yText: TextEditor['_yText']) {
+  constructor(
+    yText: TextEditor['_yText'],
+    renderElement?: (delta: DeltaInsert) => TextElement
+  ) {
     this._yText = yText;
+    if (renderElement) {
+      this._renderElement = renderElement;
+    }
+
     this.signals = {
       updateRangeStatic: new Signal<UpdateRangeStaticProp>(),
     };
@@ -57,7 +66,7 @@ export class TextEditor {
     this._rootElement.dataset.virgoRoot = 'true';
 
     const deltas = this._yText.toDelta() as DeltaInsert[];
-    renderDeltas(deltas, this._rootElement);
+    renderDeltas(deltas, this._rootElement, this._renderElement);
 
     this._rootElement.addEventListener(
       'beforeinput',
@@ -538,7 +547,7 @@ export class TextEditor {
       return d;
     }) as DeltaInsert[];
 
-    renderDeltas(deltas, this._rootElement);
+    renderDeltas(deltas, this._rootElement, this._renderElement);
   }
 
   private _onSelectionChange(): void {
@@ -714,7 +723,11 @@ function findDocumentOrShadowRoot(editor: TextEditor): Document | ShadowRoot {
   return el.ownerDocument;
 }
 
-function renderDeltas(deltas: DeltaInsert[], rootElement: HTMLElement) {
+function renderDeltas(
+  deltas: DeltaInsert[],
+  rootElement: HTMLElement,
+  render: (delta: DeltaInsert) => TextElement
+) {
   const chunks = deltaInsersToChunks(deltas);
 
   // every chunk is a line
@@ -728,7 +741,7 @@ function renderDeltas(deltas: DeltaInsert[], rootElement: HTMLElement) {
     } else {
       const virgoLine = new VirgoLine();
       for (const delta of chunk) {
-        const element = renderElement(delta);
+        const element = render(delta);
 
         virgoLine.elements.push(element);
       }

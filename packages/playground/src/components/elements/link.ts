@@ -1,8 +1,16 @@
+import {
+  DeltaInsert,
+  ZERO_WIDTH_SPACE,
+  VirgoUnitText,
+  BaseArrtiubtes,
+} from '@blocksuite/virgo';
 import { LitElement, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import type { BaseArrtiubtes, DeltaInsert, LinkAttributes } from '../types.js';
-import { ZERO_WIDTH_SPACE } from '../constant.js';
-import { VirgoUnitText } from './virgo-unit-text.js';
+
+export interface LinkAttributes {
+  type: 'link';
+  href: string;
+}
 
 @customElement('v-link')
 export class Link extends LitElement {
