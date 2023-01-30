@@ -1,16 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { Editor } from './Editor';
-
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <Editor></Editor>,
-  },
-  {
-    path: 'test/:id',
-    element: <Editor></Editor>,
-  },
-]);
 
 export const App = () => {
   return (
@@ -22,7 +10,7 @@ export const App = () => {
           'w-[1200px] h-[600px] bg-[#202124] text-[#d5d5cf] rounded-md p-2'
         }
       >
-        <RouterProvider router={router}></RouterProvider>
+        <Editor></Editor>
       </div>
       <footer className="p-4 bg-[#242424] rounded-lg shadow md:flex md:items-center md:justify-between md:p-6">
         <span className="text-sm text-gray-400 sm:text-center">

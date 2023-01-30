@@ -26,7 +26,6 @@ export type UpdateRangeStaticProp = [
 
 export class TextEditor {
   private _rootElement: HTMLElement | null = null;
-  private _yText: Y.Text;
   private _rangeStatic: RangeStatic | null = null;
   private _isComposing = false;
   private _renderElement: (delta: DeltaInsert) => TextElement =
@@ -35,12 +34,13 @@ export class TextEditor {
   signals: {
     updateRangeStatic: Signal<UpdateRangeStaticProp>;
   };
+  yText: Y.Text;
 
   constructor(
-    yText: TextEditor['_yText'],
+    yText: TextEditor['yText'],
     renderElement?: (delta: DeltaInsert) => TextElement
   ) {
-    this._yText = yText;
+    this.yText = yText;
     if (renderElement) {
       this._renderElement = renderElement;
     }
@@ -65,7 +65,7 @@ export class TextEditor {
     this._rootElement.contentEditable = 'true';
     this._rootElement.dataset.virgoRoot = 'true';
 
-    const deltas = this._yText.toDelta() as DeltaInsert[];
+    const deltas = this.yText.toDelta() as DeltaInsert[];
     renderDeltas(deltas, this._rootElement, this._renderElement);
 
     this._rootElement.addEventListener(
@@ -116,7 +116,7 @@ export class TextEditor {
   }
 
   getDeltaByRangeIndex(rangeIndex: RangeStatic['index']): DeltaInsert | null {
-    const deltas = this._yText.toDelta() as DeltaInsert[];
+    const deltas = this.yText.toDelta() as DeltaInsert[];
 
     let index = 0;
     for (let i = 0; i < deltas.length; i++) {
@@ -133,7 +133,7 @@ export class TextEditor {
   getDeltasByRangeStatic(
     rangeStatic: RangeStatic
   ): [DeltaInsert, RangeStatic][] {
-    const deltas = this._yText.toDelta() as DeltaInsert[];
+    const deltas = this.yText.toDelta() as DeltaInsert[];
 
     const result: [DeltaInsert, RangeStatic][] = [];
     let index = 0;
@@ -164,27 +164,27 @@ export class TextEditor {
   }
 
   deleteText(rangeStatic: RangeStatic): void {
-    this._yText.delete(rangeStatic.index, rangeStatic.length);
+    this.yText.delete(rangeStatic.index, rangeStatic.length);
   }
 
   insertText(rangeStatic: RangeStatic, text: string): void {
     const currentDelta = this.getDeltaByRangeIndex(rangeStatic.index);
-    this._yText.delete(rangeStatic.index, rangeStatic.length);
+    this.yText.delete(rangeStatic.index, rangeStatic.length);
 
     if (
       rangeStatic.index > 0 &&
       currentDelta &&
       currentDelta.attributes.type !== 'line-break'
     ) {
-      this._yText.insert(rangeStatic.index, text, currentDelta.attributes);
+      this.yText.insert(rangeStatic.index, text, currentDelta.attributes);
     } else {
-      this._yText.insert(rangeStatic.index, text, { type: 'base' });
+      this.yText.insert(rangeStatic.index, text, { type: 'base' });
     }
   }
 
   insertLineBreak(rangeStatic: RangeStatic): void {
-    this._yText.delete(rangeStatic.index, rangeStatic.length);
-    this._yText.insert(rangeStatic.index, '\n', { type: 'line-break' });
+    this.yText.delete(rangeStatic.index, rangeStatic.length);
+    this.yText.insert(rangeStatic.index, '\n', { type: 'line-break' });
   }
 
   formatText(
@@ -217,7 +217,7 @@ export class TextEditor {
           this.resetText(goalRangeStatic);
         }
 
-        this._yText.format(
+        this.yText.format(
           goalRangeStatic.index,
           goalRangeStatic.length,
           attributes
@@ -245,7 +245,7 @@ export class TextEditor {
       )
     );
 
-    this._yText.format(rangeStatic.index, rangeStatic.length, {
+    this.yText.format(rangeStatic.index, rangeStatic.length, {
       ...unset,
       type: 'base',
     });
@@ -459,7 +459,7 @@ export class TextEditor {
     ) {
       return {
         index: 0,
-        length: this._yText.length,
+        length: this.yText.length,
       };
     }
 
@@ -474,7 +474,7 @@ export class TextEditor {
     }
 
     const { inputType, data } = event;
-
+    console.log('inputType', inputType, 'data', data);
     if (inputType === 'insertText' && this._rangeStatic.index >= 0 && data) {
       this.insertText(this._rangeStatic, data);
 
@@ -514,7 +514,7 @@ export class TextEditor {
         ]);
       } else if (this._rangeStatic.index > 0) {
         // https://dev.to/acanimal/how-to-slice-or-get-symbols-from-a-unicode-string-with-emojis-in-javascript-lets-learn-how-javascript-represent-strings-h3a
-        const tmpString = this._yText
+        const tmpString = this.yText
           .toString()
           .slice(0, this._rangeStatic.index);
         const deletedChracater = [...tmpString].slice(-1).join('');
@@ -563,7 +563,7 @@ export class TextEditor {
   private _onYTextChange(): void {
     assertExists(this._rootElement);
 
-    const deltas = (this._yText.toDelta() as DeltaInsert[]).flatMap(d => {
+    const deltas = (this.yText.toDelta() as DeltaInsert[]).flatMap(d => {
       if (d.attributes.type === 'line-break') {
         return d.insert
           .split('')
