@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 export async function enterPlayground(page: Page): Promise<void> {
   await page.goto(`http://localhost:5173/test-page/`);
